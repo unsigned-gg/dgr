@@ -1,0 +1,36 @@
+[package]
+name = "dgr"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.85"
+description = "Deterministic workflow orchestration engine and live DAG run-state runtime for autonomous agent swarms"
+license = "Apache-2.0 OR MIT"
+authors = ["unsigned.gg <engineering@unsigned.gg>", "Christian M. Todie <chris@todie.io>"]
+repository = "https://github.com/unsigned-gg/dgr"
+homepage = "https://unsigned.gg"
+documentation = "https://docs.rs/dgr"
+readme = "README.md"
+keywords = ["dag", "orchestration", "workflow", "tui", "agents"]
+categories = ["command-line-utilities", "visualization", "development-tools"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+crossterm = "0.28"
+unicode-width = "0.2"
+toml = "0.8"
+thiserror = "2.0"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+
+[[bin]]
+name = "dgr"
+path = "src/main.rs"
+
+[[bin]]
+name = "dagr"
+path = "src/dagr.rs"
+
+[lib]
+name = "dgr"
+path = "src/lib.rs"
