@@ -12,6 +12,7 @@ documentation = "https://docs.rs/dgr"
 readme = "README.md"
 keywords = ["dag", "graph", "mathematics", "runtime", "tui"]
 categories = ["data-structures", "algorithms", "command-line-utilities", "visualization"]
+exclude = [".agents/", ".github/", "scripts/"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
