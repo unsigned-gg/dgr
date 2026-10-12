@@ -17,9 +17,8 @@ for dir in src tests samples skills assets demos/selfrun; do
 done
 
 for file in \
-  Cargo.toml Cargo.lock herdr-plugin.toml CONTRACT.md .gitignore \
+  Cargo.toml Cargo.lock CONTRACT.md .gitignore \
   LICENSE-MIT LICENSE-APACHE \
-  scripts/open-dagr.sh scripts/open-dagr.ps1 \
   scripts/build.sh scripts/build.ps1 \
   scripts/install.sh scripts/install.ps1 \
   scripts/test-release-install.sh scripts/test-public-stage.sh \
@@ -113,7 +112,7 @@ assert compact < wide, "compact mobile figure must appear before the wide sideca
 assert "(assets/pane-cockpit.svg)" not in readme
 assert "(assets/pane-sidecar.svg)" not in readme
 for name in ("pane-cockpit.png", "pane-sidecar.png"):
-    assert f"](https://raw.githubusercontent.com/aemrebarut/herdr-dagr/main/assets/{name})" in readme
+    assert f"](https://raw.githubusercontent.com/unsigned-gg/dgr/main/assets/{name})" in readme
 PY
 
 echo "public staging parity OK"

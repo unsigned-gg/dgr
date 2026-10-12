@@ -1,7 +1,7 @@
-//! Operator → orchestrator messages. dagr records and transports intent;
+//! Operator → orchestrator messages. dgr records and transports intent;
 //! it does not interpret it or run a second workflow engine. Prompt starters
 //! are editable text, authority is a separate explicit field, and the
-//! immutable journal is written before Herdr receives the message.
+//! immutable journal is written before dispatch receives the message.
 
 use crate::contract::Doc;
 use serde::{Deserialize, Serialize};
@@ -547,7 +547,7 @@ pub fn prepare(
     });
     append_json(&journal, &record)?;
     let envelope = format!(
-        "[DAGR OPERATOR MESSAGE]\nmessage_id: {id}\nrun: {}\nrevision: {}\ntarget: {}\nstarter: {}\nauthority: {}\n\n{text}\n\nAcknowledge this message. Preserve message_id in any resolution event you append to the run file.",
+        "[DGR OPERATOR MESSAGE]\nmessage_id: {id}\nrun: {}\nrevision: {}\ntarget: {}\nstarter: {}\nauthority: {}\n\n{text}\n\nAcknowledge this message. Preserve message_id in any resolution event you append to the run file.",
         envelope_field(run_id),
         envelope_field(revision),
         envelope_field(target),
@@ -566,10 +566,10 @@ pub fn prepare(
     })
 }
 
-/// Queue through Herdr, then append a delivery receipt. A failed transport
+/// Queue through liveness transport, then append a delivery receipt. A failed transport
 /// never erases the already-recorded operator intent.
 pub fn deliver(submission: Submission) -> String {
-    deliver_with(submission, crate::herdr::prompt)
+    deliver_with(submission, crate::liveness::prompt)
 }
 
 fn deliver_with(
@@ -608,7 +608,7 @@ mod tests {
 
     fn temp_run(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "dagr-message-{name}-{}-{}",
+            "dgr-message-{name}-{}-{}",
             std::process::id(),
             millis()
         ));
@@ -686,7 +686,7 @@ mod tests {
     fn composer_submission_delivers_once_and_persists_the_exact_resolution() {
         let run_path = temp_run("journal");
         let doc: Doc = serde_json::from_str(
-            r#"{"dagr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"generated_at":"2026-08-17T01:02:03Z","tasks":[{"id":"G1"}]}"#,
+            r#"{"dgr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"generated_at":"2026-08-17T01:02:03Z","tasks":[{"id":"G1"}]}"#,
         )
         .unwrap();
         let mut draft = Draft::from_starter("G1".into(), &defaults(), 1);
@@ -751,7 +751,7 @@ mod tests {
     fn prepare_refuses_a_target_removed_by_a_live_reload() {
         let run_path = temp_run("stale-target");
         let doc: Doc = serde_json::from_str(
-            r#"{"dagr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"tasks":[]}"#,
+            r#"{"dgr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"tasks":[]}"#,
         )
         .unwrap();
         let error = prepare(
@@ -773,7 +773,7 @@ mod tests {
     fn prepare_refuses_a_target_duplicated_by_a_live_reload_before_journaling() {
         let run_path = temp_run("duplicate-target");
         let doc: Doc = serde_json::from_str(
-            r#"{"dagr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"generated_at":"2026-08-20T01:02:03Z","tasks":[{"id":"A"},{"id":"A"}]}"#,
+            r#"{"dgr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"generated_at":"2026-08-20T01:02:03Z","tasks":[{"id":"A"},{"id":"A"}]}"#,
         )
         .unwrap();
         let error = prepare(

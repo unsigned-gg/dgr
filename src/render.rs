@@ -1039,7 +1039,7 @@ pub fn compact_inspector(
     doc: &Doc,
     key: Option<&str>,
     width: usize,
-    _hints: Option<&crate::herdr::Hints>,
+    _hints: Option<&crate::liveness::Hints>,
     _messages: &[crate::message::Summary],
 ) -> Vec<String> {
     if width < 8 {
@@ -1142,7 +1142,7 @@ pub fn focus_card(
     doc: &Doc,
     key: &str,
     cw: usize,
-    hints: Option<&crate::herdr::Hints>,
+    hints: Option<&crate::liveness::Hints>,
     messages: &[crate::message::Summary],
 ) -> Vec<String> {
     // below ~8 cols no card grammar survives; claim the space, draw nothing
@@ -1261,7 +1261,7 @@ pub fn focus_card(
             ));
         }
     }
-    // locator + herdr hint: where the attempt lives, and whether that pane
+    // locator + liveness hint: where the attempt lives, and whether that pane
     // still exists (per the live link) — the dead-locator line
     if let Some(l) = attempt.and_then(|a| a.locator.as_ref()) {
         let loc = l.pane.as_deref().or(l.agent.as_deref());
@@ -1269,7 +1269,7 @@ pub fn focus_card(
             let kind = if l.pane.is_some() { "pane" } else { "agent" };
             match l.pane.as_deref().and_then(|p| hints.map(|h| h.pane(p))) {
                 Some(Some(Some(st))) => body.push((
-                    format!("{kind} {loc} · herdr: {st}"),
+                    format!("{kind} {loc} · {st}"),
                     Style::dim(style::WORKING),
                 )),
                 Some(Some(None)) => {
@@ -1836,8 +1836,8 @@ pub struct FrameInput<'a> {
     pub flash: Option<String>,
     pub stale_min: Option<i64>,
     pub watching: bool,
-    /// herdr liveness hints (M2); `None` outside herdr or in snapshots.
-    pub herdr: Option<&'a crate::herdr::Hints>,
+    /// Liveness hints; `None` when standalone or in snapshots.
+    pub liveness: Option<&'a crate::liveness::Hints>,
     /// Contextual message-composer prompt.
     pub prompt: Option<String>,
     /// Append-only operator-message state reconstructed once per reload.
@@ -2079,7 +2079,7 @@ pub fn compose_with_inspector(input: &FrameInput, w: usize, inspector: Inspector
             input.doc,
             sel,
             card_w,
-            input.herdr,
+            input.liveness,
             input.messages,
         ));
         for line in detail_start..out.len() {
@@ -2095,9 +2095,9 @@ pub fn compose_with_inspector(input: &FrameInput, w: usize, inspector: Inspector
             out.push(String::new());
         }
         // Never write the card into the terminal's final auto-wrap cell.
-        // Ghostty and Herdr both correctly treat that cell as a wrap trigger,
+        // Modern terminals correctly treat that cell as a wrap trigger,
         // which made the right border disappear at otherwise valid widths.
-        let card = focus_card(input.doc, k, card_w, input.herdr, input.messages);
+        let card = focus_card(input.doc, k, card_w, input.liveness, input.messages);
         let card_start = out.len();
         if let Some(i) = card.iter().position(|line| line.contains("[m] message")) {
             hits.push(Hit {
@@ -2158,11 +2158,11 @@ pub fn compose_with_inspector(input: &FrameInput, w: usize, inspector: Inspector
         // pane: reserve it right-aligned BEFORE the key legend claims the
         // row, and shrink the legend into what remains.
         let mut avail = w.saturating_sub(1);
-        if let Some(h) = input.herdr {
+        if let Some(h) = input.liveness {
             let (txt, st) = if h.connected {
-                ("⟂ herdr", Style::dim(style::WORKING))
+                ("⟂ live", Style::dim(style::WORKING))
             } else {
-                ("⟂ herdr off", Style::dim(style::MUTED))
+                ("⟂ static", Style::dim(style::MUTED))
             };
             let tw = txt.width();
             if w > tw + 2 {
@@ -2242,7 +2242,7 @@ pub fn help_lines() -> Vec<String> {
         ),
         (
             "enter",
-            "focus the selected attempt's herdr pane (zoom-cycle)",
+            "focus the selected attempt's process (zoom-cycle)",
         ),
         (
             "m",
@@ -2318,7 +2318,7 @@ mod tests {
                 flash: None,
                 stale_min: None,
                 watching: false,
-                herdr: None,
+                liveness: None,
                 prompt: None,
                 messages: &[],
             },
@@ -2331,7 +2331,7 @@ mod tests {
     #[test]
     fn project_state_nodes_connect_to_all_content_rails() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "project-rails"},
             "projects": [
                 {"id": "ROOT", "title": "Root"},
@@ -2430,7 +2430,7 @@ mod tests {
     #[test]
     fn full_rows_keep_derived_operator_signals_legible() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "signals"},
             "tasks": [
                 {"id": "U", "title": "unowned", "kind": "impl", "state": "queued", "deps": [], "attempts": []},
@@ -2452,7 +2452,7 @@ mod tests {
     #[test]
     fn queued_retry_focuses_the_current_task_stub() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "retry"},
             "tasks": [{
                 "id": "R", "title": "retry", "kind": "impl", "owner": "dev",
@@ -2470,7 +2470,7 @@ mod tests {
     #[test]
     fn focus_cards_share_derived_signals_and_projects_have_no_task_action() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "focus"},
             "projects": [{"id": "P", "title": "Core", "owner": "lead"}],
             "tasks": [
@@ -2529,7 +2529,7 @@ mod tests {
                     flash: None,
                     stale_min: None,
                     watching: false,
-                    herdr: None,
+                    liveness: None,
                     prompt: None,
                     messages: &[],
                 },
@@ -2552,7 +2552,7 @@ mod tests {
         let event = format!("{}EVENT-TAIL", "event-word ".repeat(20));
         let project_note = format!("{}PROJECT-TAIL", "project-word ".repeat(20));
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "detail-dock"},
             "generated_at": "2026-08-21T04:00:00Z",
             "projects": [{
@@ -2593,7 +2593,7 @@ mod tests {
                     flash: None,
                     stale_min: None,
                     watching: false,
-                    herdr: None,
+                    liveness: None,
                     prompt: None,
                     messages: &[],
                 },
@@ -2687,7 +2687,7 @@ mod tests {
 
     fn inspector_doc() -> Doc {
         serde_json::from_value(serde_json::json!({
-            "dagr": 3,
+            "dgr": 3,
             "run": {"id": "inspector", "title": "Inspector"},
             "generated_at": "2026-08-21T10:30:00Z",
             "projects": [
@@ -2810,7 +2810,7 @@ mod tests {
                 flash: None,
                 stale_min: None,
                 watching: false,
-                herdr: None,
+                liveness: None,
                 prompt: None,
                 messages: &[],
             },
@@ -2973,7 +2973,7 @@ mod tests {
                 flash: None,
                 stale_min: None,
                 watching: false,
-                herdr: None,
+                liveness: None,
                 prompt: None,
                 messages: &[],
             },
@@ -3048,7 +3048,7 @@ mod tests {
                     flash: None,
                     stale_min: None,
                     watching: false,
-                    herdr: None,
+                    liveness: None,
                     prompt: None,
                     messages: &[],
                 },

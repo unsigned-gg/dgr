@@ -6,7 +6,7 @@
 //! The renderer invents nothing (CONTRACT.md, non-goals).
 
 use crate::contract::{Attempt, Doc, Project, Task};
-use crate::herdr::Hints;
+use crate::liveness::Hints;
 use crate::style::{self, Style};
 
 #[derive(Clone)]
@@ -162,7 +162,7 @@ pub struct ViewOpts<'a> {
 /// shape check: calendar ranges (leap years included), optional seconds
 /// and fraction, and a `Z` / `±HH:MM` offset that is normalized into UTC
 /// before any arithmetic. `None` for anything invalid — the renderer then
-/// claims no duration rather than a wrong one, and `dagr check` E180
+/// claims no duration rather than a wrong one, and `dgr check` E180
 /// rides the same parser so the two can never disagree.
 pub fn parse_min(ts: &str) -> Option<i64> {
     let b = ts.as_bytes();
@@ -1949,8 +1949,8 @@ fn node_row(
                 _ => {}
             }
         }
-        // herdr overlay: a live attempt whose locator pane no longer exists.
-        // Claimed only while the link is connected — no herdr, no claim.
+        // liveness overlay: a live attempt whose locator pane no longer exists.
+        // Claimed only while the link is connected — no liveness link, no claim.
         if matches!(st, "working" | "queued" | "lost") {
             if let (Some(h), Some(p)) = (hints, a.locator.as_ref().and_then(|l| l.pane.as_deref()))
             {
@@ -2232,7 +2232,7 @@ mod tests {
     fn mini() -> Doc {
         serde_json::from_str(
             r#"{
-              "dagr": 1,
+              "dgr": 1,
               "run": {"id": "r", "title": "mini"},
               "generated_at": "2026-08-16T12:00:00Z",
               "tasks": [
@@ -2254,7 +2254,7 @@ mod tests {
 
     fn queued_tasks(tasks: serde_json::Value) -> Doc {
         serde_json::from_value(serde_json::json!({
-            "dagr": 1,
+            "dgr": 1,
             "run": {"id": "r", "title": "queued"},
             "tasks": tasks
         }))
@@ -2488,7 +2488,7 @@ mod tests {
     #[test]
     fn recursive_projects_place_local_shared_and_global_gates_at_their_scope() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "r", "title": "projects"},
             "projects": [
                 {"id": "P", "title": "Product"},
@@ -2537,7 +2537,7 @@ mod tests {
     #[test]
     fn project_milestone_keeps_the_rail_open_through_the_preceding_branch() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "project-rail"},
             "projects": [{"id": "P", "title": "Project"}],
             "tasks": [
@@ -2598,7 +2598,7 @@ mod tests {
             }));
         }
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 3,
+            "dgr": 3,
             "run": {"id": "shared-fanin"},
             "projects": [{"id": "P", "title": "Core"}],
             "tasks": tasks
@@ -2621,7 +2621,7 @@ mod tests {
     #[test]
     fn project_summary_does_not_hide_lost_failed_or_unverified_work() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "r"},
             "projects": [{"id": "P", "title": "Product"}],
             "tasks": [
@@ -2655,7 +2655,7 @@ mod tests {
     #[test]
     fn cross_project_dependency_is_an_edge_chip_not_a_false_visual_home() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "r"},
             "projects": [{"id": "A", "title": "A"}, {"id": "B", "title": "B"}],
             "tasks": [
@@ -2783,7 +2783,7 @@ mod tests {
     #[test]
     fn queued_attempt_actor_drives_every_task_projection() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 3,
+            "dgr": 3,
             "run": {"id": "attempt-owner"},
             "projects": [{"id": "P", "title": "Core"}],
             "tasks": [
@@ -3055,7 +3055,7 @@ mod tests {
 
     fn project_navigation_doc() -> Doc {
         serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "projects", "title": "project navigation"},
             "projects": [
                 {"id": "ROOT", "title": "Recovery"},
@@ -3145,7 +3145,7 @@ mod tests {
     #[test]
     fn local_and_cross_project_gates_have_truthful_structural_parents() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "gates"},
             "projects": [
                 {"id": "P", "title": "Product"},
@@ -3194,7 +3194,7 @@ mod tests {
     #[test]
     fn folded_and_project_rollups_share_ready_waiting_and_needs_answer_signals() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "signals"},
             "projects": [{"id": "P", "title": "Signals"}],
             "tasks": [
@@ -3262,7 +3262,7 @@ mod tests {
     #[test]
     fn canceled_tasks_keep_history_but_only_live_or_lost_work_alarms_rollups() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "canceled"},
             "projects": [{"id": "P", "title": "Canceled"}],
             "tasks": [
@@ -3366,7 +3366,7 @@ mod tests {
     #[test]
     fn malformed_row_identities_render_but_are_never_interactive() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "bad-identities"},
             "projects": [
                 {"id": "DUP", "title": "left"},
@@ -3430,7 +3430,7 @@ mod tests {
     #[test]
     fn malformed_project_cycles_render_once_and_stop() {
         let doc: Doc = serde_json::from_value(serde_json::json!({
-            "dagr": 2,
+            "dgr": 2,
             "run": {"id": "cycle"},
             "projects": [
                 {"id": "A", "title": "A", "parent": "B"},

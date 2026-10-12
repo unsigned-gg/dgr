@@ -1,17 +1,17 @@
 # selfrun — this repo's own development, as a contract run
 
-`run.json` models the herdr-dagr repository's actual development (an
+`run.json` models this repository's actual development (an
 autonomous overnight build with dual-reviewed milestones, M0–M5) as a
-dagr contract document. It is the M3 acceptance artifact: a run file
+dgr contract document. It is the M3 acceptance artifact: a run file
 produced by a **fresh agent given only the producer skill**, held to
-`dagr check --strict` clean — and to a second, harder bar described
+`dgr check --strict` clean — and to a second, harder bar described
 below.
 
 ## Provenance (recorded, not merely asserted)
 
 The file was produced by a fresh subagent (model `claude-fable-5`, no
 prior context) whose ONLY methodology input was
-`skills/dagr-producer/SKILL.md` (which itself directs the reader to
+`skills/dgr-producer/SKILL.md` (which itself directs the reader to
 CONTRACT.md's schema section and the skill's `examples/`). The facts to
 model were supplied as a prompt brief; every encoding decision (states,
 causes, evidence tiers, gates, policy, events) was the agent's own.
@@ -59,7 +59,7 @@ validator-clean*: it encoded both settled M1 review tasks as
 `rejected`, merging "the review's verdict was negative" with "the
 review task failed". Rendered, both completed reviews drew `✗ sent
 back` and the reviews gate showed two failed inputs — false claims
-about facts in this repo's history, and `dagr check --strict` was clean
+about facts in this repo's history, and `dgr check --strict` was clean
 throughout, because rejected-task-with-rejected-attempt is a legal
 projection.
 
@@ -109,8 +109,8 @@ From the repo root, after a build and with `target/release` on PATH (see
 the root README's install section):
 
 ```
-dagr check demos/selfrun/run.json --strict --json     # []
-dagr view demos/selfrun/run.json --snapshot --width 120
+dgr check demos/selfrun/run.json --strict --json     # []
+dgr view demos/selfrun/run.json --snapshot --width 120
 (cd demos/selfrun && shasum -a 256 -c receipts/01-first-write.sha256)
 ```
 

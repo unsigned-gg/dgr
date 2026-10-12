@@ -22,9 +22,7 @@ jobs:
         shell: bash
         run: |
           cargo_version=$(sed -nE 's/^version = "([^"]+)"/\1/p' Cargo.toml | head -1)
-          plugin_version=$(sed -nE 's/^version = "([^"]+)"/\1/p' herdr-plugin.toml | head -1)
           test "$GITHUB_REF_NAME" = "v$cargo_version"
-          test "$plugin_version" = "$cargo_version"
       - run: cargo test --release --locked
 
   create-release:
@@ -36,7 +34,7 @@ jobs:
         run: >-
           gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 ||
           gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
-          --verify-tag --draft --generate-notes --title "dagr $GITHUB_REF_NAME"
+          --verify-tag --draft --generate-notes --title "dgr $GITHUB_REF_NAME"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Record the exact release revision
@@ -54,17 +52,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { target: aarch64-apple-darwin, os: macos-latest, tar: unix, zip: none, artifact: dagr-aarch64-apple-darwin.tar.gz }
-          - { target: x86_64-apple-darwin, os: macos-latest, tar: unix, zip: none, artifact: dagr-x86_64-apple-darwin.tar.gz }
-          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, tar: unix, zip: none, artifact: dagr-x86_64-unknown-linux-musl.tar.gz }
-          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, tar: unix, zip: none, artifact: dagr-aarch64-unknown-linux-musl.tar.gz }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, tar: none, zip: windows, artifact: dagr-x86_64-pc-windows-msvc.zip }
+          - { target: aarch64-apple-darwin, os: macos-latest, tar: unix, zip: none, artifact: dgr-aarch64-apple-darwin.tar.gz }
+          - { target: x86_64-apple-darwin, os: macos-latest, tar: unix, zip: none, artifact: dgr-x86_64-apple-darwin.tar.gz }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, tar: unix, zip: none, artifact: dgr-x86_64-unknown-linux-musl.tar.gz }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, tar: unix, zip: none, artifact: dgr-aarch64-unknown-linux-musl.tar.gz }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, tar: none, zip: windows, artifact: dgr-x86_64-pc-windows-msvc.zip }
     steps:
       - uses: actions/checkout@v7
       - id: upload
         uses: taiki-e/upload-rust-binary-action@v1
         with:
-          bin: dagr
+          bin: dgr
           target: ${{ matrix.target }}
           archive: $bin-$target
           tar: ${{ matrix.tar }}

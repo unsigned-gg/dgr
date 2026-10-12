@@ -1,28 +1,26 @@
 ---
-name: dagr-producer
-description: Emit and maintain a dagr run file — a live, contract-valid JSON description of recursive projects, tasks, attempts, gates, evidence, policies, events, and operator-message resolutions that `dagr view` renders as a DAG. Use when orchestrating agents or tracking multi-step work that a dagr pane should display.
+name: dgr-producer
+description: Emit and maintain a dgr run file — a live, contract-valid JSON description of recursive projects, tasks, attempts, gates, evidence, policies, events, and operator-message resolutions that `dgr view` renders as a DAG. Use when orchestrating agents or tracking multi-step work that a dgr pane should display.
 ---
 
-# dagr producer — write the run, prove the run
+# dgr producer — write the run, prove the run
 
-You are the **producer**: the single writer of a run file that `dagr view`
-renders live. dagr is a *representation kernel*: you assert task truth, and
+You are the **producer**: the single writer of a run file that `dgr view`
+renders live. dgr is a *representation kernel*: you assert task truth, and
 it derives only defined view signals from those facts. Missing or wrong facts
 still produce a missing or wrong graph; there is no workflow engine to repair it.
 
-Contract version: **`"dagr": 3`** (v1/v2 files remain readable; write v3 for new runs).
+Contract version: **`"dgr": 3`** (v1/v2 files remain readable; write v3 for new runs).
 
 ## Find your validator (before you write anything)
 
-The check loop below is the only feedback you get, so resolve the `dagr`
+The check loop below is the only feedback you get, so resolve the `dgr`
 binary FIRST and stop if you can't:
 
-1. `$DAGR_BIN` if set;
-2. `command -v dagr` (on PATH);
-3. the plugin/repo build: `<dagr repo>/target/release/dagr` — inside a
-   herdr pane the runtime injects `$HERDR_PLUGIN_ROOT`, which IS the dagr
-   repo root;
-4. fallback: `cargo run --manifest-path <dagr repo>/Cargo.toml -- check …`.
+1. `$DGR_BIN` if set;
+2. `command -v dgr` (on PATH);
+3. the repo build: `<dgr repo>/target/release/dgr`;
+4. fallback: `cargo run --manifest-path <dgr repo>/Cargo.toml -- check …`.
 
 No validator available → do **not** start writing run files; say so and
 stop. An unvalidated run file is exactly the silent wrongness this whole
@@ -31,7 +29,7 @@ system exists to prevent.
 ## The loop (non-negotiable)
 
 ```
-write run.json.tmp → dagr check run.json.tmp --strict --json → fix → repeat until []
+write run.json.tmp → dgr check run.json.tmp --strict --json → fix → repeat until []
                                                              → THEN rename over run.json
 ```
 
@@ -42,7 +40,7 @@ you iterate. The safe transaction:
 
 1. Write the complete next document to `run.json.tmp` (same directory —
    rename must be atomic, so same filesystem).
-2. `dagr check run.json.tmp --strict --json`. Exit 0 with `[]` is clean;
+2. `dgr check run.json.tmp --strict --json`. Exit 0 with `[]` is clean;
    exit 1 means findings (E-codes are errors; W-codes mean representable-
    but-suspect — fix them unless you can say why not; `--strict` treats
    them as failures, prefer it). **Exit 2 means the validator could not
@@ -55,9 +53,9 @@ you iterate. The safe transaction:
 4. On failure: fix the temp file and re-check. The previous **live** file
    stays untouched — never leave `run.json` itself in an error state.
 
-**Where to write it**: the pane looks for `$DAGR_RUN` first, then
-`.dagr/run.json`, then `run.json` under the workspace cwd — and waits on
-`.dagr/run.json` when none exists yet. Default to `.dagr/run.json` in
+**Where to write it**: the pane looks for `$DGR_RUN` first, then
+`.dgr/run.json`, then `run.json` under the workspace cwd — and waits on
+`.dgr/run.json` when none exists yet. Default to `.dgr/run.json` in
 the workspace root (gitignore it), and one run per file: parallel lanes
 inside a run are just tasks with disjoint `deps`, but a separate
 workflow gets its own run file and its own pane.
@@ -71,7 +69,7 @@ workflow gets its own run file and its own pane.
 - **Task** = the work item. Stable `id` you choose (never a pane id).
   `kind` is an open set — `impl · review · test · gate · question · docs ·
   ship · …` — pick the honest one (`question` for a task that exists to be
-  answered by a human, `gate` for fan-ins; both change how dagr draws it).
+  answered by a human, `gate` for fan-ins; both change how dgr draws it).
   States: `queued · working · review · blocked · done · failed · rejected ·
   canceled · settled_unverified`.
 - **Attempt** = one try at a task. `id` styled `T·aN`, 1-based `n`.
@@ -90,7 +88,7 @@ workflow gets its own run file and its own pane.
   agent said done" is at best `reported`. Missing envelope? That's
   `settled_unverified` — a real terminal state, not a soft `done`.
 
-## Invariants dagr check will hold you to
+## Invariants dgr check will hold you to
 
 1. **Task state is a projection over attempts**: `working` needs a
    working attempt; `done`/`rejected`/`settled_unverified` need the latest
@@ -112,7 +110,7 @@ workflow gets its own run file and its own pane.
    and a real evidence tier; timestamps are real ISO-8601
    and attempts end after they start.
 5. **Ids are yours and unique**: task ids never collide
-   with attempt ids. herdr pane ids go in `locator`, never in `id`.
+   with attempt ids. Volatile pane/process ids go in `locator`, never in `id`.
 6. **Live attempts are locatable and alive**: working attempts want a
    `locator` (`{"pane": "wX:pN"}`) and a populated `liveness`
    — `prompt_acknowledged` (bool), `last_output_at` (timestamp
@@ -127,24 +125,24 @@ workflow gets its own run file and its own pane.
    visual home; keep every blocker in `deps`, including cross-project edges.
    Never duplicate a task into two projects to make both impacts visible.
 9. **Operator messages retain their authority and id.** The pane delivers a
-   `[DAGR OPERATOR MESSAGE]` envelope to you. Respect `recommend_and_return`
+   `[DGR OPERATOR MESSAGE]` envelope to you. Respect `recommend_and_return`
    versus `may_decide_and_continue`; preserve `message_id` in the resolution
-   event. dagr transports the request but does not act on it for you.
+   event. dgr transports the request but does not act on it for you.
 
 ## Recipes
 
 Every recipe below has a complete, strict-clean companion document under
-`examples/` in this skill directory — held clean by the dagr test suite.
+`examples/` in this skill directory — held clean by the dgr test suite.
 The fragments here show the *shape*; when you assemble a real file, crib
 from the example, because the fragments alone omit cross-references (a
 `cause.ref` needs its referent declared, a working attempt needs
-locator + liveness) that `dagr check` will hold you to.
+locator + liveness) that `dgr check` will hold you to.
 
 ### Initialize a run
 
 ```json
 {
-  "dagr": 3,
+  "dgr": 3,
   "run": {
     "id": "run-myjob-v01", "title": "what this run is",
     "started_at": "2026-02-01T09:00:00Z",
@@ -160,8 +158,8 @@ locator + liveness) that `dagr check` will hold you to.
 Refresh `generated_at` on every write — it anchors every "Nm ago" on
 screen, and a stale value renders a staleness banner.
 
-Set `run.orchestrator` automatically from your own `$HERDR_PANE_ID` when
-available (or a stable Herdr agent target otherwise). This is where `m`
+Set `run.orchestrator` automatically from your own session or pane locator
+when available (or a stable orchestrator agent target otherwise). This is where `m`
 queues operator messages; do not point it at a worker. No user onboarding
 step or extra controller is required.
 
@@ -186,7 +184,7 @@ common parent. Omit `project` only for genuinely run-level work.
 Start coarse: declare the useful project skeleton, immediate work, and
 meaningful gates. Add discovered tasks as they become relevant; publish
 operator-visible work, not every internal agent, tool, or runtime step.
-Dagr derives queued-row `waits`, `ready`, `unassigned`, and `needs answer`
+Dgr derives queued-row `waits`, `ready`, `unassigned`, and `needs answer`
 from `deps`, `owner`/`actor`, and `kind`; never encode those as extra fields.
 
 ### Open a task and start its first attempt
@@ -208,7 +206,7 @@ from `deps`, `owner`/`actor`, and `kind`; never encode those as extra fields.
 Append `{"at": ..., "type": "attempt_started", "task": "L1", "attempt": "L1·a1", "actor": "l1-dev"}`
 to `events`.
 
-`model` is a free string rendered verbatim — dagr never rewrites it, so
+`model` is a free string rendered verbatim — dgr never rewrites it, so
 YOU pick the display form. Use a short `model·effort` chip: `fable·xhigh`,
 `sol5.6·max`, `luna5.6·max`, `terra5.6·max`. The pane gives the column 12
 cells (`terra5.6·max` fills it exactly); longer strings get truncated with
@@ -261,7 +259,7 @@ points at the review attempt:
 
 `cause.ref` must name a **declared, earlier** attempt — if `R1·a1` isn't
 in the file, the check fails; a working retry still needs locator +
-liveness. Task back to `state: "working"`; dagr draws the ↩ re-entry
+liveness. Task back to `state: "working"`; dgr draws the ↩ re-entry
 from exactly this cause. Complete document:
 [`examples/03-send-back.json`](examples/03-send-back.json).
 
@@ -278,11 +276,11 @@ differs from the dependency set:
 ```
 
 Declare gate inputs in the intentional human reading order, and keep the
-whole `tasks` array intentional too: dagr preserves declaration order for
+whole `tasks` array intentional too: dgr preserves declaration order for
 attempt-less siblings and for the gate's state-bearing join strip. Do not
 rename ids for sorting, attach the gate to one lane as a layout workaround,
 or add a synthetic "join" task. Declare the truthful fan-in. A gate with
-`project` is a milestone in that project; without one, dagr places it at the
+`project` is a milestone in that project; without one, dgr places it at the
 nearest project shared by all inputs. Therefore a gate local to `API` stays
 inside `API`, a gate joining `API` and `UI` lives in their parent `APP`, and a
 gate joining unrelated top-level projects is a run-level milestone. Input
@@ -331,7 +329,7 @@ cancellation is not success, update or cancel any task that still depends on it.
 `ref` points at an existing task (rendered `»`); `node` declares a
 not-yet-real one (`○`, `⟲` with `loop_back`, `≈` when `attribution` is
 `predicted`); `after` chains onto a sibling future node of the same
-policy. dagr renders futures **only** from this block, and only for
+policy. dgr renders futures **only** from this block, and only for
 working or blocked nodes. Complete document:
 [`examples/05a-policy-declared.json`](examples/05a-policy-declared.json).
 
@@ -402,12 +400,12 @@ a `question`, a rule that retires a task). Complete document:
 
 ### Handle an operator message
 
-The pane's default action is one contextual message composer. Herdr queues
+The pane's default action is one contextual message composer. The runtime delivers
 the finished message directly to the `run.orchestrator` locator, so do not
 build another inbox daemon. You receive an envelope like:
 
 ```text
-[DAGR OPERATOR MESSAGE]
+[DGR OPERATOR MESSAGE]
 message_id: msg-0123456789abcdef
 run: run-myjob-v01
 revision: 2026-02-01T09:42:00Z
@@ -427,7 +425,7 @@ Do this:
    `may_decide_and_continue` lets you decide and proceed. Never infer the
    second from wording such as “best guess”.
 3. Treat model, reasoning, and multi-agent requests as ordinary editable
-   instructions and use your normal orchestration tools. dagr runs none of it.
+   instructions and use your normal orchestration tools. dgr runs none of it.
 4. Keep the `message_id` through follow-ups. On resolution, append an event:
 
 ```json
@@ -437,7 +435,7 @@ Do this:
 ```
 
 If several messages informed one decision, set `source_messages` on the
-directive/resolution event. Do not edit `messages.jsonl`; dagr owns that
+directive/resolution event. Do not edit `messages.jsonl`; dgr owns that
 append-only delivery journal. Your event is the durable project-memory link
 back to it.
 
@@ -478,12 +476,12 @@ the record.
 ## What NOT to do
 
 - Don't renumber, rewrite, or delete attempts or events. Append.
-- Don't put herdr pane/agent ids in task or attempt ids — they're
+- Don't put volatile pane/agent ids in task or attempt ids — they're
   `locator` data, volatile by design.
 - Don't claim `verified` without a mechanical receipt. Don't upgrade
   evidence after the fact without a new event explaining why.
-- Don't encode task state from herdr's view of the world (pane alive ≠
-  work done). herdr is *where*, the contract is *what is true*.
+- Don't encode task state from external multiplexer/process views of the world
+  (process alive ≠ work done). Locators say *where*, the contract says *what is true*.
 - Don't mirror every internal agent/tool step; include work an operator needs
   to understand, steer, or verify.
 - Don't hand-compute "% complete" — write per-attempt `progress`
@@ -492,7 +490,7 @@ the record.
 
 ## Field reference
 
-The full schema is `CONTRACT.md` (Schema v3 section) in the dagr repo;
-findings codes are listed there too. When `dagr check --json` names a code
+The full schema is `CONTRACT.md` (Schema v3 section) in the dgr repo;
+findings codes are listed there too. When `dgr check --json` names a code
 you don't recognize, read its message — every finding carries the JSON
 path of the offending field.

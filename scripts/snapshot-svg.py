@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Render `dagr view --snapshot` ANSI output to an SVG screenshot.
+"""Render `dgr view --snapshot` ANSI output to an SVG screenshot.
 
 The README images are generated, not drawn: pipe a snapshot in, get a
-terminal-styled SVG out. Handles the subset of SGR dagr emits (38;5;N
+terminal-styled SVG out. Handles the subset of SGR dgr emits (38;5;N
 foreground, 48;5;N background, bold, dim, resets).
 Box-drawing cells become vector paths so browser font metrics cannot open
 seams that a terminal emulator correctly joins.
 
-Usage: dagr view run.json --snapshot --compact --width 150 | snapshot-svg.py out.svg
+Usage: dgr view run.json --snapshot --compact --width 150 | snapshot-svg.py out.svg
 """
 
 import re
@@ -204,7 +204,7 @@ def main():
             # Terminal emulators join box-drawing glyphs across adjacent
             # cells. Browser fonts generally do not, leaving visible seams
             # in frames and graph rails. Keep ordinary text as shaped runs,
-            # but draw the box glyphs dagr emits as exact cell paths.
+            # but draw the box glyphs dgr emits as exact cell paths.
             offset = 0
             start = 0
             chunk = ""

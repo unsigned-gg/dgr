@@ -1,8 +1,8 @@
 {
-  "dagr": 1,
+  "dgr": 1,
   "run": {
-    "id": "run-herdr-dagr-overnight-v01",
-    "title": "herdr-dagr: autonomous overnight build, dual-reviewed (M0–M5)",
+    "id": "run-dgr-overnight-v01",
+    "title": "dgr: autonomous overnight build, dual-reviewed (M0–M5)",
     "started_at": "2026-08-14T00:05:00-07:00"
   },
   "generated_at": "2026-08-14T11:33:30Z",
@@ -15,7 +15,7 @@
         "actor": "orchestrator-main",
         "state": "done",
         "started_at": "2026-08-14T00:06:00-07:00", "ended_at": "2026-08-14T00:26:00-07:00",
-        "outcome": {"result": "done", "evidence": "verified", "receipt": "samples/run.json + samples/states.json strict-clean under dagr check (in-tree)"}
+        "outcome": {"result": "done", "evidence": "verified", "receipt": "samples/run.json + samples/states.json strict-clean under dgr check (in-tree)"}
       }]
     },
     {
@@ -70,7 +70,7 @@
       "attempts": []
     },
     {
-      "id": "M2", "title": "M2: herdr integration", "kind": "impl",
+      "id": "M2", "title": "M2: liveness integration", "kind": "impl",
       "owner": "orchestrator-main", "state": "done", "deps": ["M0"],
       "attempts": [
         {
@@ -260,7 +260,7 @@
           "actor": "selfrun-producer-3",
           "state": "done",
           "started_at": "2026-08-14T04:27:00-07:00", "ended_at": "2026-08-14T04:33:30-07:00",
-          "outcome": {"result": "done", "evidence": "verified", "receipt": "dagr check --strict clean; receipts in demos/selfrun/receipts/"}
+          "outcome": {"result": "done", "evidence": "verified", "receipt": "dgr check --strict clean; receipts in demos/selfrun/receipts/"}
         }
       ]
     },
@@ -293,7 +293,7 @@
   "events": [
     {"at": "2026-08-14T00:05:00-07:00", "type": "directive", "verb": "rule", "by": "operator", "detail": "standing rule: run M0–M5 autonomously; every milestone gets two independent reviews (opus-5 + gpt-5.6-sol); revise until findings are addressed; commit everything; publishing stays manual"},
     {"at": "2026-08-14T00:06:00-07:00", "type": "attempt_started", "task": "M0", "attempt": "M0·a1", "actor": "orchestrator-main"},
-    {"at": "2026-08-14T00:26:00-07:00", "type": "attempt_settled", "task": "M0", "attempt": "M0·a1", "actor": "orchestrator-main", "detail": "done: samples strict-clean under dagr check"},
+    {"at": "2026-08-14T00:26:00-07:00", "type": "attempt_settled", "task": "M0", "attempt": "M0·a1", "actor": "orchestrator-main", "detail": "done: samples strict-clean under dgr check"},
     {"at": "2026-08-14T00:27:00-07:00", "type": "attempt_started", "task": "M1", "attempt": "M1·a1", "actor": "orchestrator-main"},
     {"at": "2026-08-14T00:46:00-07:00", "type": "attempt_started", "task": "M2", "attempt": "M2·a1", "actor": "orchestrator-main"},
     {"at": "2026-08-14T01:05:00-07:00", "type": "attempt_started", "task": "RM1G", "attempt": "RM1G·a1", "actor": "gpt-5.6-sol-reviewer"},

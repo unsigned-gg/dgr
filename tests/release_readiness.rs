@@ -22,21 +22,20 @@ fn repo_file(path: &str) -> String {
 }
 
 #[test]
-fn package_plugin_contract_and_binary_versions_are_0_4_0() {
+fn package_contract_and_binary_versions_are_0_4_0() {
     assert!(repo_file("Cargo.toml").contains("version = \"0.4.0\""));
-    assert!(repo_file("herdr-plugin.toml").contains("version = \"0.4.0\""));
     let cargo_lock = repo_file("Cargo.lock").replace("\r\n", "\n");
     assert!(cargo_lock.contains("name = \"dgr\"\nversion = \"0.4.0\""));
-    assert!(repo_file("CONTRACT.md").starts_with("# The dagr run-state contract — v3"));
+    assert!(repo_file("CONTRACT.md").starts_with("# The dgr run-state contract — v3"));
 
-    let output = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let output = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .arg("--version")
         .output()
-        .expect("dagr runs");
+        .expect("dgr runs");
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8_lossy(&output.stdout).trim(),
-        "dagr 0.4.0 (contract v3; reads v1/v2)"
+        "dgr 0.4.0 (contract v3; reads v1/v2)"
     );
 }
 
@@ -73,11 +72,11 @@ fn release_workflow_has_exactly_five_checksum_assets() {
         })
         .collect();
     let expected_artifacts: BTreeSet<String> = [
-        "dagr-aarch64-apple-darwin.tar.gz",
-        "dagr-x86_64-apple-darwin.tar.gz",
-        "dagr-aarch64-unknown-linux-musl.tar.gz",
-        "dagr-x86_64-unknown-linux-musl.tar.gz",
-        "dagr-x86_64-pc-windows-msvc.zip",
+        "dgr-aarch64-apple-darwin.tar.gz",
+        "dgr-x86_64-apple-darwin.tar.gz",
+        "dgr-aarch64-unknown-linux-musl.tar.gz",
+        "dgr-x86_64-unknown-linux-musl.tar.gz",
+        "dgr-x86_64-pc-windows-msvc.zip",
     ]
     .into_iter()
     .map(str::to_string)
@@ -133,7 +132,6 @@ fn public_stage_copies_the_release_surface_deliberately() {
         ".github/workflows/ci.yml",
         "Cargo.toml",
         "Cargo.lock",
-        "herdr-plugin.toml",
         "CONTRACT.md",
     ] {
         assert!(stage.contains(path), "public stage omitted {path}");

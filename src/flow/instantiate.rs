@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-//! Instantiation: workflow template + parameters -> FlowGraph + dagr v3 run document.
+//! Instantiation: workflow template + parameters -> FlowGraph + dgr v3 run document.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -12,7 +12,7 @@ use super::types::{AgentSelection, FlowGraph, GateKind, PathKind, StepSpec};
 #[derive(Debug)]
 pub struct Instantiation {
     pub graph: FlowGraph,
-    pub dagr_document: serde_json::Value,
+    pub dgr_document: serde_json::Value,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -41,7 +41,7 @@ pub enum FlowError {
     EmptyVerifyCmd,
     #[error("step {0}: command must be non-empty")]
     EmptyCommand(String),
-    #[error("dagr validation failed: {0}")]
+    #[error("dgr validation failed: {0}")]
     ValidationFailed(String),
 }
 
@@ -87,7 +87,7 @@ pub fn instantiate(
         }
     }
 
-    // Render dagr v3 document
+    // Render dgr v3 document
     let mut tasks = Vec::new();
     for st in &template.steps {
         let task_id = st.id.clone();
@@ -120,8 +120,8 @@ pub fn instantiate(
         format!("{:x}", hasher.finalize())[..12].to_string()
     };
 
-    let dagr_document = json!({
-        "dagr": 3,
+    let dgr_document = json!({
+        "dgr": 3,
         "run": {
             "id": format!("{}-{}", template.flow.name, run_hash),
             "title": template.flow.name.clone(),
@@ -176,6 +176,6 @@ pub fn instantiate(
 
     Ok(Instantiation {
         graph,
-        dagr_document,
+        dgr_document,
     })
 }

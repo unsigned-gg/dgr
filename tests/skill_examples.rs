@@ -9,8 +9,8 @@
 
 use std::process::Command;
 
-fn dagr() -> &'static str {
-    env!("CARGO_BIN_EXE_dagr")
+fn dgr() -> &'static str {
+    env!("CARGO_BIN_EXE_dgr")
 }
 
 fn assert_dir_strict_clean(rel_dir: &str, floor: usize) {
@@ -24,10 +24,10 @@ fn assert_dir_strict_clean(rel_dir: &str, floor: usize) {
         .collect();
     entries.sort();
     for path in entries {
-        let out = Command::new(dagr())
+        let out = Command::new(dgr())
             .args(["check", path.to_str().unwrap(), "--strict", "--json"])
             .output()
-            .expect("dagr check failed to spawn");
+            .expect("dgr check failed to spawn");
         let stdout = String::from_utf8_lossy(&out.stdout);
         assert!(
             out.status.success() && stdout.trim() == "[]",
@@ -45,26 +45,26 @@ fn assert_dir_strict_clean(rel_dir: &str, floor: usize) {
 
 #[test]
 fn every_skill_example_is_strict_clean() {
-    assert_dir_strict_clean("skills/dagr-producer/examples", 8);
+    assert_dir_strict_clean("skills/dgr-producer/examples", 8);
 }
 
-/// `dagr --skill` is how an agent onboards itself from inside the pane, so
+/// `dgr --skill` is how an agent onboards itself from inside the pane, so
 /// the bundled copy must be the shipped file byte-for-byte: a truncated or
 /// drifted skill teaches the wrong contract with no way to notice.
 #[test]
 fn the_bundled_skill_is_the_shipped_file() {
     let path = format!(
-        "{}/skills/dagr-producer/SKILL.md",
+        "{}/skills/dgr-producer/SKILL.md",
         env!("CARGO_MANIFEST_DIR")
     );
     let on_disk = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
-    let out = Command::new(dagr())
+    let out = Command::new(dgr())
         .arg("--skill")
         .output()
-        .expect("dagr --skill failed to spawn");
+        .expect("dgr --skill failed to spawn");
     assert!(
         out.status.success(),
-        "dagr --skill exited {:?}",
+        "dgr --skill exited {:?}",
         out.status.code()
     );
     assert_eq!(String::from_utf8_lossy(&out.stdout), on_disk);
@@ -76,7 +76,7 @@ fn the_bundled_skill_is_the_shipped_file() {
     );
     assert_eq!(
         frontmatter.next(),
-        Some("name: dagr-producer"),
+        Some("name: dgr-producer"),
         "skill lost its frontmatter name"
     );
 }

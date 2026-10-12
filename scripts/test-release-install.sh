@@ -11,17 +11,17 @@ safe_path="$work/path"
 mkdir -p "$source_tree/scripts" "$assets" "$install_dir" "$safe_path"
 
 cp "$root/scripts/install.sh" "$source_tree/scripts/install.sh"
-printf '%s\n' 'version = "0.3.1"' > "$source_tree/herdr-plugin.toml"
+printf '%s\n' 'version = "0.3.1"' > "$source_tree/Cargo.toml"
 printf '%s\n' \
   '#!/usr/bin/env bash' \
   'set -eu' \
-  'printf source-fallback > "${DAGR_TEST_FALLBACK_MARKER:?}"' \
+  'printf source-fallback > "${DGR_TEST_FALLBACK_MARKER:?}"' \
   > "$source_tree/scripts/build.sh"
 chmod +x "$source_tree/scripts/install.sh" "$source_tree/scripts/build.sh"
 
 git -C "$source_tree" init -q
-git -C "$source_tree" config user.name 'dagr release test'
-git -C "$source_tree" config user.email 'dagr-release-test@example.invalid'
+git -C "$source_tree" config user.name 'dgr release test'
+git -C "$source_tree" config user.email 'dgr-release-test@example.invalid'
 git -C "$source_tree" add .
 git -C "$source_tree" -c commit.gpgsign=false commit -qm fixture
 head_commit=$(git -C "$source_tree" rev-parse HEAD)
@@ -36,11 +36,11 @@ esac
 
 payload="$work/payload"
 mkdir -p "$payload"
-printf '%s\n' '#!/bin/sh' 'printf "%s\n" "dagr fixture 0.3.1"' > "$payload/dagr"
-chmod +x "$payload/dagr"
-archive="dagr-$target.tar.gz"
-checksum="dagr-$target.sha256"
-tar -czf "$assets/$archive" -C "$payload" dagr
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" "dgr fixture 0.3.1"' > "$payload/dgr"
+chmod +x "$payload/dgr"
+archive="dgr-$target.tar.gz"
+checksum="dgr-$target.sha256"
+tar -czf "$assets/$archive" -C "$payload" dgr
 if command -v sha256sum >/dev/null 2>&1; then
   digest=$(sha256sum "$assets/$archive" | awk '{print $1}')
 else
@@ -59,34 +59,34 @@ test -x "$safe_path/bash"
 test -x "$safe_path/curl"
 test ! -e "$safe_path/cargo"
 
-printf '%s\n' '#!/bin/sh' 'printf "%s\n" old-install' > "$install_dir/dagr"
-chmod +x "$install_dir/dagr"
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" old-install' > "$install_dir/dgr"
+chmod +x "$install_dir/dgr"
 PATH="$safe_path" \
-  DAGR_RELEASE_BASE="file://$assets" \
-  DAGR_INSTALL_BIN_DIR="$install_dir" \
+  DGR_RELEASE_BASE="file://$assets" \
+  DGR_INSTALL_BIN_DIR="$install_dir" \
   "$safe_path/bash" "$source_tree/scripts/install.sh"
-test "$("$install_dir/dagr")" = 'dagr fixture 0.3.1'
+test "$("$install_dir/dgr")" = 'dgr fixture 0.3.1'
 
 printf '%064d  %s\n' 0 "$archive" > "$assets/$checksum"
-printf '%s\n' '#!/bin/sh' 'printf "%s\n" preserved-old' > "$install_dir/dagr"
-chmod +x "$install_dir/dagr"
+printf '%s\n' '#!/bin/sh' 'printf "%s\n" preserved-old' > "$install_dir/dgr"
+chmod +x "$install_dir/dgr"
 if PATH="$safe_path" \
-  DAGR_RELEASE_BASE="file://$assets" \
-  DAGR_INSTALL_BIN_DIR="$install_dir" \
+  DGR_RELEASE_BASE="file://$assets" \
+  DGR_INSTALL_BIN_DIR="$install_dir" \
   "$safe_path/bash" "$source_tree/scripts/install.sh" >"$work/checksum.log" 2>&1; then
   echo "checksum mismatch unexpectedly installed" >&2
   exit 1
 fi
 grep -q 'checksum mismatch' "$work/checksum.log"
-test "$("$install_dir/dagr")" = 'preserved-old'
+test "$("$install_dir/dgr")" = 'preserved-old'
 
 printf '%s\n' '#!/bin/sh' 'exit 99' > "$safe_path/cargo"
 chmod +x "$safe_path/cargo"
 fallback_marker="$work/fallback"
 PATH="$safe_path" \
-  DAGR_RELEASE_BASE="file://$work/no-release" \
-  DAGR_INSTALL_BIN_DIR="$install_dir" \
-  DAGR_TEST_FALLBACK_MARKER="$fallback_marker" \
+  DGR_RELEASE_BASE="file://$work/no-release" \
+  DGR_INSTALL_BIN_DIR="$install_dir" \
+  DGR_TEST_FALLBACK_MARKER="$fallback_marker" \
   "$safe_path/bash" "$source_tree/scripts/install.sh" >"$work/fallback.log" 2>&1
 test "$(sed -n '1p' "$fallback_marker")" = 'source-fallback'
 grep -q 'building this source with Cargo' "$work/fallback.log"
@@ -102,9 +102,9 @@ printf '%s\n' \
 chmod +x "$safe_path/uname"
 unsupported_marker="$work/unsupported"
 PATH="$safe_path" \
-  DAGR_RELEASE_BASE="file://$assets" \
-  DAGR_INSTALL_BIN_DIR="$install_dir" \
-  DAGR_TEST_FALLBACK_MARKER="$unsupported_marker" \
+  DGR_RELEASE_BASE="file://$assets" \
+  DGR_INSTALL_BIN_DIR="$install_dir" \
+  DGR_TEST_FALLBACK_MARKER="$unsupported_marker" \
   "$safe_path/bash" "$source_tree/scripts/install.sh" >"$work/unsupported.log" 2>&1
 test "$(sed -n '1p' "$unsupported_marker")" = 'source-fallback'
 grep -q 'no prebuilt exists for Plan9-mips64' "$work/unsupported.log"

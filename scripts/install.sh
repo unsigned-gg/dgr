@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Herdr install-time build: prefer the checksum-verified release binary only
+# Install-time build: prefer the checksum-verified release binary only
 # when it was built from this exact source revision. Source builds remain the
 # fallback for unreleased or locally modified refs; released installs need no
 # Rust toolchain.
 set -euo pipefail
 
-name="dagr"
-repo="aemrebarut/herdr-dagr"
+name="dgr"
+repo="unsigned-gg/dgr"
 root="$(cd "$(dirname "$0")/.." && pwd)"
-bin_dir="${DAGR_INSTALL_BIN_DIR:-$root/bin}"
-version="$(sed -nE 's/^version = "([^"]+)"/\1/p' "$root/herdr-plugin.toml" | head -1)"
+bin_dir="${DGR_INSTALL_BIN_DIR:-$root/bin}"
+version="$(sed -nE 's/^version = "([^"]+)"/\1/p' "$root/Cargo.toml" | head -1)"
 tag="v$version"
 
 target=""
@@ -46,7 +46,7 @@ source_fallback() {
 archive="$name-$target.tar.gz"
 checksum="$name-$target.sha256"
 commit_marker="COMMIT"
-base="${DAGR_RELEASE_BASE:-https://github.com/$repo/releases/download/$tag}"
+base="${DGR_RELEASE_BASE:-https://github.com/$repo/releases/download/$tag}"
 tmp="$(mktemp -d)"
 
 download() {
@@ -69,7 +69,7 @@ if command -v git >/dev/null 2>&1 &&
     source_fallback "the checkout has local changes"
   fi
 elif [ -f "$root/.git/HEAD" ]; then
-  # Herdr's managed installs are detached shallow clones. This keeps the
+  # Managed installs are detached shallow clones. This keeps the
   # no-toolchain path available even if `git` is not on the build-step PATH.
   head_commit="$(sed -nE 's/^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/\1/p' "$root/.git/HEAD")"
 fi
@@ -125,7 +125,7 @@ if [ ! -f "$tmp/unpack/$name" ]; then
   echo "$name: release archive does not contain $name" >&2
   exit 1
 fi
-stage="$(mktemp "$bin_dir/.dagr-install.XXXXXX")"
+stage="$(mktemp "$bin_dir/.dgr-install.XXXXXX")"
 install -m 0755 "$tmp/unpack/$name" "$stage"
 mv -f "$stage" "$bin_dir/$name"
 stage=""

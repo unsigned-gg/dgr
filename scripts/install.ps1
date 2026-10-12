@@ -1,46 +1,50 @@
-# Herdr install-time build for Windows. Prefer the checksum-verified release
+# Install-time build for Windows. Prefer the checksum-verified release
 # binary only when it was built from this exact source revision; otherwise
 # build the checked-out source with Cargo.
 # Compatible with Windows PowerShell 5.1.
 $ErrorActionPreference = 'Stop'
 
-$Name = 'dagr'
-$Repo = 'aemrebarut/herdr-dagr'
+$Name = 'dgr'
+$Repo = 'unsigned-gg/dgr'
 $Root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if ($Root.StartsWith('\\?\')) { $Root = $Root.Substring(4) }
-$BinDir = if ($env:DAGR_INSTALL_BIN_DIR) { $env:DAGR_INSTALL_BIN_DIR } else { Join-Path $Root 'bin' }
-$Manifest = Join-Path $Root 'herdr-plugin.toml'
+$BinDir = if ($env:DGR_INSTALL_BIN_DIR) {
+    $env:DGR_INSTALL_BIN_DIR
+} else {
+    Join-Path $Root 'bin'
+}
+$Manifest = Join-Path $Root 'Cargo.toml'
 $VersionMatch = Select-String -Path $Manifest -Pattern '^version\s*=\s*"([^"]+)"' | Select-Object -First 1
 if (-not $VersionMatch) {
-    [Console]::Error.WriteLine("${Name}: cannot read the plugin version")
+    [Console]::Error.WriteLine("${Name}: cannot read the package version")
     exit 1
 }
 $Version = $VersionMatch.Matches[0].Groups[1].Value
 $Tag = "v$Version"
 $script:TmpDir = $null
 
-function Clear-DagrTemp {
+function Clear-DgrTemp {
     if ($script:TmpDir -and (Test-Path -LiteralPath $script:TmpDir)) {
         Remove-Item -LiteralPath $script:TmpDir -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
-function Invoke-DagrFallback {
+function Invoke-DgrFallback {
     param([string]$Reason)
     $Cargo = Get-Command cargo -ErrorAction SilentlyContinue
     if ($Cargo) {
         [Console]::Error.WriteLine("${Name}: $Reason; building this source with Cargo")
-        Clear-DagrTemp
+        Clear-DgrTemp
         & (Join-Path $PSScriptRoot 'build.ps1')
         exit $LASTEXITCODE
     }
     [Console]::Error.WriteLine("${Name}: $Reason, and Cargo is not installed")
     [Console]::Error.WriteLine("${Name}: install the released revision, or install Rust to build this source")
-    Clear-DagrTemp
+    Clear-DgrTemp
     exit 1
 }
 
-function Invoke-DagrDownload {
+function Invoke-DgrDownload {
     param([string]$Url, [string]$Destination)
     try {
         if ($Url.StartsWith('file://', [System.StringComparison]::OrdinalIgnoreCase)) {
@@ -62,16 +66,16 @@ function Invoke-DagrDownload {
 $Arch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
 $Target = $null
 if ($Arch -eq 'AMD64') { $Target = 'x86_64-pc-windows-msvc' }
-if (-not $Target) { Invoke-DagrFallback "no prebuilt exists for Windows-$Arch" }
+if (-not $Target) { Invoke-DgrFallback "no prebuilt exists for Windows-$Arch" }
 
 $Archive = "$Name-$Target.zip"
 $Checksum = "$Name-$Target.sha256"
-$Base = if ($env:DAGR_RELEASE_BASE) {
-    $env:DAGR_RELEASE_BASE.TrimEnd('/')
+$Base = if ($env:DGR_RELEASE_BASE) {
+    $env:DGR_RELEASE_BASE.TrimEnd('/')
 } else {
     "https://github.com/$Repo/releases/download/$Tag"
 }
-$script:TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dagr-install-" + [System.Guid]::NewGuid().ToString('N'))
+$script:TmpDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dgr-install-" + [System.Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $script:TmpDir -Force | Out-Null
 
 $HeadCommit = $null
@@ -81,7 +85,7 @@ if ($Git) {
     if ($LASTEXITCODE -eq 0) {
         $HeadCommit = ((& git -C $Root rev-parse HEAD 2>$null | Select-Object -First 1) | Out-String).Trim()
         $Dirty = ((& git -C $Root status --porcelain --untracked-files=normal 2>$null) | Out-String).Trim()
-        if ($Dirty) { Invoke-DagrFallback 'the checkout has local changes' }
+        if ($Dirty) { Invoke-DgrFallback 'the checkout has local changes' }
     }
 }
 if (-not $HeadCommit) {
@@ -92,55 +96,55 @@ if (-not $HeadCommit) {
     }
 }
 if (-not $HeadCommit -or $HeadCommit -notmatch '^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
-    Invoke-DagrFallback 'cannot verify the checkout revision'
+    Invoke-DgrFallback 'cannot verify the checkout revision'
 }
 
 $CommitPath = Join-Path $script:TmpDir 'COMMIT'
-if (-not (Invoke-DagrDownload "$Base/COMMIT" $CommitPath)) {
-    Invoke-DagrFallback "no release marker is available for $Tag"
+if (-not (Invoke-DgrDownload "$Base/COMMIT" $CommitPath)) {
+    Invoke-DgrFallback "no release marker is available for $Tag"
 }
 $ReleaseCommit = (Get-Content -LiteralPath $CommitPath -Raw).Trim()
 if ($ReleaseCommit -notmatch '^([0-9a-fA-F]{40}|[0-9a-fA-F]{64})$') {
-    Invoke-DagrFallback "the $Tag release marker is malformed"
+    Invoke-DgrFallback "the $Tag release marker is malformed"
 }
 if (-not $HeadCommit.Equals($ReleaseCommit, [System.StringComparison]::OrdinalIgnoreCase)) {
-    Invoke-DagrFallback "checkout $HeadCommit does not match the $Tag release revision $ReleaseCommit"
+    Invoke-DgrFallback "checkout $HeadCommit does not match the $Tag release revision $ReleaseCommit"
 }
 
 $ArchivePath = Join-Path $script:TmpDir $Archive
 $ChecksumPath = Join-Path $script:TmpDir $Checksum
 [Console]::Out.WriteLine("${Name}: downloading $Archive ($Tag)")
-if (-not (Invoke-DagrDownload "$Base/$Archive" $ArchivePath) -or
-    -not (Invoke-DagrDownload "$Base/$Checksum" $ChecksumPath)) {
-    Invoke-DagrFallback "no prebuilt asset is available for $Tag"
+if (-not (Invoke-DgrDownload "$Base/$Archive" $ArchivePath) -or
+    -not (Invoke-DgrDownload "$Base/$Checksum" $ChecksumPath)) {
+    Invoke-DgrFallback "no prebuilt asset is available for $Tag"
 }
 
 $ChecksumLine = (Get-Content -LiteralPath $ChecksumPath | Select-Object -First 1)
 $Expected = if ($ChecksumLine) { ($ChecksumLine.Trim() -split '\s+')[0].ToLowerInvariant() } else { $null }
 if (-not $Expected -or $Expected -notmatch '^[0-9a-f]{64}$') {
     [Console]::Error.WriteLine("${Name}: malformed checksum asset $Checksum")
-    Clear-DagrTemp
+    Clear-DgrTemp
     exit 1
 }
 $Actual = (Get-FileHash -LiteralPath $ArchivePath -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($Actual -ne $Expected) {
     [Console]::Error.WriteLine("${Name}: checksum mismatch (expected $Expected, got $Actual)")
-    Clear-DagrTemp
+    Clear-DgrTemp
     exit 1
 }
 
 $Unpack = Join-Path $script:TmpDir 'unpack'
 New-Item -ItemType Directory -Path $Unpack -Force | Out-Null
 Expand-Archive -LiteralPath $ArchivePath -DestinationPath $Unpack -Force
-$SourceBin = Join-Path $Unpack 'dagr.exe'
+$SourceBin = Join-Path $Unpack 'dgr.exe'
 if (-not (Test-Path -LiteralPath $SourceBin -PathType Leaf)) {
-    [Console]::Error.WriteLine("${Name}: release archive does not contain dagr.exe")
-    Clear-DagrTemp
+    [Console]::Error.WriteLine("${Name}: release archive does not contain dgr.exe")
+    Clear-DgrTemp
     exit 1
 }
 New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
-$InstalledBin = Join-Path $BinDir 'dagr.exe'
-$StagedBin = Join-Path $BinDir ('.dagr-install-' + [System.Guid]::NewGuid().ToString('N') + '.exe')
+$InstalledBin = Join-Path $BinDir 'dgr.exe'
+$StagedBin = Join-Path $BinDir ('.dgr-install-' + [System.Guid]::NewGuid().ToString('N') + '.exe')
 try {
     Copy-Item -LiteralPath $SourceBin -Destination $StagedBin
     if (Test-Path -LiteralPath $InstalledBin -PathType Leaf) {
@@ -155,6 +159,6 @@ try {
         Remove-Item -LiteralPath $StagedBin -Force -ErrorAction SilentlyContinue
     }
 }
-Clear-DagrTemp
+Clear-DgrTemp
 [Console]::Out.WriteLine("${Name}: installed $InstalledBin")
 exit 0

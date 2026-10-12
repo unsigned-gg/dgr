@@ -1,4 +1,4 @@
-//! `dagr check` — lint a run-state document against contract v3.
+//! `dgr check` — lint a run-state document against contract v3.
 //!
 //! Errors mean the document misdescribes itself: dangling references,
 //! duplicate identity, task states that contradict the attempt record.
@@ -165,18 +165,18 @@ pub fn check(doc: &Doc) -> Report {
     }
 
     // ── document head ────────────────────────────────────────────────
-    match doc.dagr {
+    match doc.dgr {
         None => err!(
             "E100",
-            "dagr",
-            "missing contract version field \"dagr\" (expected {})",
+            "dgr",
+            "missing contract version field \"dgr\" (expected {})",
             CONTRACT_VERSION
         ),
         Some(v) if !CONTRACT_VERSIONS.contains(&v) => {
             err!(
                 "E100",
-                "dagr",
-                "unsupported contract version {} (this dagr speaks {})",
+                "dgr",
+                "unsupported contract version {} (this dgr speaks {})",
                 v,
                 CONTRACT_VERSIONS
                     .iter()

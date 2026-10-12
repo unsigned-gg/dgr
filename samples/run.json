@@ -1,5 +1,5 @@
 {
-  "dagr": 1,
+  "dgr": 1,
   "run": {
     "id": "run-assemble-v01",
     "title": "assemble: six-lane build → G2",
@@ -134,7 +134,7 @@
           "id": "L5r·a1", "n": 1, "cause": {"type": "initial"},
           "actor": "l5-rev", "model": "opus5·max", "state": "working",
           "started_at": "2026-08-13T15:24:00Z",
-          "locator": {"pane": "herdr:ws-main/pane-7"},
+          "locator": {"pane": "ws-main/pane-7"},
           "liveness": {"prompt_acknowledged": true, "last_output_at": "2026-08-13T15:58:00Z", "queued_input": 0},
           "progress": {"done": 2, "total": 5, "note": "defaults audit"}
         }

@@ -3,15 +3,15 @@ name = "dgr"
 version = "0.4.0"
 edition = "2021"
 rust-version = "1.85"
-description = "Deterministic workflow orchestration engine and live DAG run-state runtime for autonomous agent swarms"
+description = "Mathematical and machine-sympathetic directed acyclic graph (DAG) execution runtime and state engine in pure Rust"
 license = "Apache-2.0 OR MIT"
 authors = ["unsigned.gg <engineering@unsigned.gg>", "Christian M. Todie <chris@todie.io>"]
 repository = "https://github.com/unsigned-gg/dgr"
 homepage = "https://unsigned.gg"
 documentation = "https://docs.rs/dgr"
 readme = "README.md"
-keywords = ["dag", "orchestration", "workflow", "tui", "agents"]
-categories = ["command-line-utilities", "visualization", "development-tools"]
+keywords = ["dag", "graph", "mathematics", "runtime", "tui"]
+categories = ["data-structures", "algorithms", "command-line-utilities", "visualization"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -26,10 +26,6 @@ sha2 = "0.10"
 [[bin]]
 name = "dgr"
 path = "src/main.rs"
-
-[[bin]]
-name = "dagr"
-path = "src/dagr.rs"
 
 [lib]
 name = "dgr"

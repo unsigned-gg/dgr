@@ -1,5 +1,5 @@
 {
-  "dagr": 1,
+  "dgr": 1,
   "run": {
     "id": "run-state-matrix-v01",
     "title": "state matrix: every task/attempt state, every evidence tier",

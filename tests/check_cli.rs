@@ -1,5 +1,5 @@
-//! Integration tests for `dagr check`, driven through the real binary
-//! (CARGO_BIN_EXE_dagr) so they exercise the CLI contract — exit codes,
+//! Integration tests for `dgr check`, driven through the real binary
+//! (CARGO_BIN_EXE_dgr) so they exercise the CLI contract — exit codes,
 //! --json shape, finding codes — exactly as a producer's write→check→fix
 //! loop sees them.
 
@@ -7,17 +7,17 @@ use std::process::Command;
 
 fn run_check(doc: &str) -> (i32, Vec<(String, String)>) {
     let dir = std::env::temp_dir().join(format!(
-        "dagr-test-{}-{:?}",
+        "dgr-test-{}-{:?}",
         std::process::id(),
         std::thread::current().id()
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("run.json");
     std::fs::write(&path, doc).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let out = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .args(["check", path.to_str().unwrap(), "--json"])
         .output()
-        .expect("dagr runs");
+        .expect("dgr runs");
     let code = out.status.code().unwrap_or(-1);
     let findings: Vec<(String, String)> = serde_json::from_slice::<serde_json::Value>(&out.stdout)
         .ok()
@@ -44,14 +44,14 @@ fn has(findings: &[(String, String)], code: &str) -> bool {
 
 #[test]
 fn version_reports_the_current_contract_and_compatibility() {
-    let out = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let out = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .arg("--version")
         .output()
-        .expect("dagr runs");
+        .expect("dgr runs");
     assert!(out.status.success());
     let version = String::from_utf8_lossy(&out.stdout);
     assert!(
-        version.contains(&format!("dagr {} (contract v3; reads v1/v2)", env!("CARGO_PKG_VERSION"))),
+        version.contains(&format!("dgr {} (contract v3; reads v1/v2)", env!("CARGO_PKG_VERSION"))),
         "{version}"
     );
 }
@@ -59,7 +59,7 @@ fn version_reports_the_current_contract_and_compatibility() {
 /// A minimal valid document: one done task, one verified attempt.
 fn base() -> serde_json::Value {
     serde_json::json!({
-        "dagr": 1,
+        "dgr": 1,
         "run": {"id": "r1", "title": "t", "started_at": "2026-01-01T10:00:00Z"},
         "generated_at": "2026-01-01T11:00:00Z",
         "tasks": [{
@@ -85,7 +85,7 @@ fn clean_doc_exits_zero() {
 #[test]
 fn v2_projects_and_orchestrator_locator_are_clean() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(2);
+    d["dgr"] = serde_json::json!(2);
     d["run"]["orchestrator"] = serde_json::json!({"pane": "wX:p1"});
     d["projects"] = serde_json::json!([
         {"id": "P", "title": "Product"},
@@ -99,7 +99,7 @@ fn v2_projects_and_orchestrator_locator_are_clean() {
 #[test]
 fn project_hierarchy_and_task_homes_are_validated() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(2);
+    d["dgr"] = serde_json::json!(2);
     d["projects"] = serde_json::json!([
         {"id": "A", "title": "A", "parent": "B"},
         {"id": "B", "title": "B", "parent": "A"}
@@ -113,7 +113,7 @@ fn project_hierarchy_and_task_homes_are_validated() {
 #[test]
 fn a_gate_cannot_claim_a_project_that_excludes_an_input() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(2);
+    d["dgr"] = serde_json::json!(2);
     d["projects"] = serde_json::json!([
         {"id": "P", "title": "Parent"},
         {"id": "A", "title": "A", "parent": "P"},
@@ -132,7 +132,7 @@ fn a_gate_cannot_claim_a_project_that_excludes_an_input() {
 #[test]
 fn empty_orchestrator_locator_is_e103() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(2);
+    d["dgr"] = serde_json::json!(2);
     d["run"]["orchestrator"] = serde_json::json!({});
     let (_, findings) = run_check(&d.to_string());
     assert!(has(&findings, "E103"), "{findings:?}");
@@ -148,7 +148,7 @@ fn not_json_is_e001() {
 #[test]
 fn wrong_version_is_e100() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(99);
+    d["dgr"] = serde_json::json!(99);
     let (code, findings) = run_check(&d.to_string());
     assert_eq!(code, 1);
     assert!(has(&findings, "E100"), "{findings:?}");
@@ -181,7 +181,7 @@ fn terminal_active_and_blank_identities_are_rejected() {
 #[test]
 fn task_identity_cannot_alias_a_project_row_key() {
     let mut d = base();
-    d["dagr"] = serde_json::json!(2);
+    d["dgr"] = serde_json::json!(2);
     d["projects"] = serde_json::json!([{"id": "P", "title": "Project"}]);
     d["tasks"][0]["id"] = serde_json::json!("project:P");
     let (code, findings) = run_check(&d.to_string());
@@ -497,11 +497,11 @@ fn completion_without_evidence_warns_w201() {
 fn strict_turns_warnings_into_failure() {
     let mut d = base();
     d["tasks"][0]["attempts"][0]["outcome"] = serde_json::json!({"result": "done"});
-    let dir = std::env::temp_dir().join(format!("dagr-strict-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("dgr-strict-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("run.json");
     std::fs::write(&path, d.to_string()).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let out = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .args(["check", path.to_str().unwrap(), "--strict"])
         .output()
         .unwrap();
@@ -513,7 +513,7 @@ fn strict_turns_warnings_into_failure() {
 fn legacy_action_data_is_readable_but_inert_in_v1_v2_and_v3() {
     for version in [1, 2, 3] {
         let mut d = base();
-        d["dagr"] = serde_json::json!(version);
+        d["dgr"] = serde_json::json!(version);
         d["actions"] = serde_json::json!({
             "unblock": {"argv": ["/tmp/must-not-run", "{task}"]},
             "arbitrary-old-shape": [false, 42, {"shell": "touch sentinel"}]
@@ -547,7 +547,7 @@ fn a_cycle_through_gate_inputs_is_e122() {
     // L1 waits on G1; G1 fans in L1 via inputs only. Without inputs in
     // the E122 edge set this deadlock is validator-clean.
     let d = serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T10:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T10:00:00Z",
         "tasks": [
             {"id": "L1", "title": "lane", "kind": "impl", "state": "queued", "deps": ["G1"], "attempts": []},
             {"id": "G1", "title": "gate", "kind": "gate", "state": "queued", "deps": [], "inputs": ["L1"], "attempts": []}
@@ -557,15 +557,15 @@ fn a_cycle_through_gate_inputs_is_e122() {
     assert!(has(&findings, "E122"), "{findings:?}");
 }
 
-// ── dagr stats ─────────────────────────────────────────────────────────
+// ── dgr stats ─────────────────────────────────────────────────────────
 
 #[test]
 fn stats_reports_flow_over_the_state_matrix() {
-    let dir = std::env::temp_dir().join(format!("dagr-stats-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("dgr-stats-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("run.json");
     std::fs::write(&path, STATES).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let out = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .args(["stats", path.to_str().unwrap(), "--json"])
         .output()
         .unwrap();
@@ -580,14 +580,14 @@ fn stats_reports_flow_over_the_state_matrix() {
 
 fn run_stats(doc: &serde_json::Value) -> serde_json::Value {
     let dir = std::env::temp_dir().join(format!(
-        "dagr-stats-{}-{:?}",
+        "dgr-stats-{}-{:?}",
         std::process::id(),
         std::thread::current().id()
     ));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("run.json");
     std::fs::write(&path, doc.to_string()).unwrap();
-    let out = Command::new(env!("CARGO_BIN_EXE_dagr"))
+    let out = Command::new(env!("CARGO_BIN_EXE_dgr"))
         .args(["stats", path.to_str().unwrap(), "--json"])
         .output()
         .unwrap();
@@ -602,7 +602,7 @@ fn critical_path_stops_at_settled_dependencies() {
     // 1-chains — the path must NOT thread through R1. The real longest
     // chain is C2 → C1, both unfinished with a genuine deps edge.
     let doc = serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T12:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T12:00:00Z",
         "tasks": [
             {"id": "B1", "state": "working", "deps": [], "attempts": []},
             {"id": "R1", "state": "done", "deps": ["B1"], "attempts": []},
@@ -625,7 +625,7 @@ fn critical_path_follows_gate_inputs_edges() {
     // `deps`. The path must NOT truncate at the gate — the deps-only
     // blind spot E122 had, in a different consumer.
     let doc = serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T12:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T12:00:00Z",
         "tasks": [
             {"id": "L1", "state": "working", "deps": [], "attempts": []},
             {"id": "L2", "state": "queued", "deps": ["L1"], "attempts": []},
@@ -647,7 +647,7 @@ fn lost_attempts_contribute_no_duration() {
     // 90-minute lost span must not inflate the mean or the ETA built on
     // it.
     let doc = serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T12:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T12:00:00Z",
         "tasks": [{
             "id": "A", "state": "working", "deps": [],
             "attempts": [
@@ -673,7 +673,7 @@ fn lost_attempts_contribute_no_duration() {
 fn clock_falls_back_to_latest_timestamp_and_says_so() {
     // no generated_at; the latest timestamp anywhere is an event's `at`
     let doc = serde_json::json!({
-        "dagr": 1,
+        "dgr": 1,
         "run": {"id": "r", "started_at": "2026-01-01T10:00:00Z"},
         "tasks": [{
             "id": "A", "state": "working", "deps": [],
@@ -692,7 +692,7 @@ fn clock_falls_back_to_latest_timestamp_and_says_so() {
     assert_eq!(task["since_latest_start_min"], 95, "{v}");
 
     let with_clock = run_stats(&serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T12:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T12:00:00Z",
         "tasks": [{"id": "A", "state": "working", "deps": [], "attempts": []}]
     }));
     assert_eq!(with_clock["clock"], "generated_at", "{with_clock}");
@@ -701,7 +701,7 @@ fn clock_falls_back_to_latest_timestamp_and_says_so() {
 #[test]
 fn durations_are_terminal_only_and_rework_is_cause_based() {
     let doc = serde_json::json!({
-        "dagr": 1, "generated_at": "2026-01-01T12:00:00Z",
+        "dgr": 1, "generated_at": "2026-01-01T12:00:00Z",
         "tasks": [
             // live attempt: its started→ended-less span must not count
             {"id": "A", "state": "working", "deps": [], "attempts": [
@@ -747,7 +747,7 @@ fn run_snapshot_with_working_glyph(
     working_glyph: Option<&str>,
 ) -> (i32, String) {
     let dir = std::env::temp_dir().join(format!(
-        "dagr-snap-{}-{:?}",
+        "dgr-snap-{}-{:?}",
         std::process::id(),
         std::thread::current().id()
     ));
@@ -756,12 +756,12 @@ fn run_snapshot_with_working_glyph(
     std::fs::write(&path, doc).unwrap();
     let mut args = vec!["view", path.to_str().unwrap(), "--snapshot"];
     args.extend_from_slice(extra);
-    let mut command = Command::new(env!("CARGO_BIN_EXE_dagr"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_dgr"));
     command.args(&args);
     if let Some(glyph) = working_glyph {
-        command.env("DAGR_WORKING_GLYPH", glyph);
+        command.env("DGR_WORKING_GLYPH", glyph);
     } else {
-        command.env("DAGR_WORKING_GLYPH", "◎");
+        command.env("DGR_WORKING_GLYPH", "◎");
     }
     let out = command.output().unwrap();
     let _ = std::fs::remove_dir_all(&dir);
@@ -992,7 +992,7 @@ fn seven_lane_join_doc_at_depth(root_depth: usize, gate_id: &str) -> String {
         "attempts": []
     }));
     serde_json::json!({
-        "dagr": 1,
+        "dgr": 1,
         "run": {"id": "join", "title": "join"},
         "generated_at": "2026-08-17T12:00:00Z",
         "tasks": tasks,
@@ -1003,7 +1003,7 @@ fn seven_lane_join_doc_at_depth(root_depth: usize, gate_id: &str) -> String {
 
 fn in_nested_project(doc: &str, depth: usize) -> String {
     let mut value: serde_json::Value = serde_json::from_str(doc).unwrap();
-    value["dagr"] = serde_json::json!(2);
+    value["dgr"] = serde_json::json!(2);
     value["projects"] = serde_json::Value::Array(
         (0..depth)
             .map(|i| {
@@ -1108,7 +1108,7 @@ fn join_identity_survives_narrow_normal_and_deep_snapshots_in_both_glyph_modes()
 #[test]
 fn snapshot_escapes_terminal_controls_and_rejects_oversized_geometry() {
     let hostile = serde_json::json!({
-        "dagr": 2,
+        "dgr": 2,
         "run": {"id": "escape", "title": "head\n\u{1b}[31mPWN\u{202e}"},
         "tasks": [{
             "id": "T", "title": "body\t\u{1b}]8;;bad\u{7}link\u{202e}",
@@ -1131,7 +1131,7 @@ fn snapshot_escapes_terminal_controls_and_rejects_oversized_geometry() {
     let tasks: Vec<_> = (0..=4096)
         .map(|i| serde_json::json!({"id": format!("T{i}"), "attempts": []}))
         .collect();
-    let too_many = serde_json::json!({"dagr": 2, "run": {"id": "many"}, "tasks": tasks});
+    let too_many = serde_json::json!({"dgr": 2, "run": {"id": "many"}, "tasks": tasks});
     let (code, _) = run_snapshot(&too_many.to_string(), &["--width", "80"]);
     assert_eq!(code, 1, "oversized documents fail before graph traversal");
 }

@@ -305,31 +305,31 @@ pub fn run(args: &[String]) -> ExitCode {
             "--json" => json_out = true,
             other if !other.starts_with('-') && path.is_none() => path = Some(other),
             other => {
-                eprintln!("dagr stats: unexpected argument {other:?}");
+                eprintln!("dgr stats: unexpected argument {other:?}");
                 return ExitCode::from(2);
             }
         }
     }
     let Some(path) = path else {
-        eprintln!("dagr stats: usage: dagr stats <run.json> [--json]");
+        eprintln!("dgr stats: usage: dgr stats <run.json> [--json]");
         return ExitCode::from(2);
     };
     let raw = match crate::scale::read_limited(path) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("dagr stats: {e}");
+            eprintln!("dgr stats: {e}");
             return ExitCode::from(2);
         }
     };
     let doc: Doc = match serde_json::from_str(&raw) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("dagr stats: not a contract document: {e}");
+            eprintln!("dgr stats: not a contract document: {e}");
             return ExitCode::from(1);
         }
     };
     if let Err(e) = crate::scale::enforce_document(&doc) {
-        eprintln!("dagr stats: {e}");
+        eprintln!("dgr stats: {e}");
         return ExitCode::from(1);
     }
     let f = compute(&doc);

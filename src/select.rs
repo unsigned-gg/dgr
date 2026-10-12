@@ -1,13 +1,10 @@
 //! Mouse text selection inside the pane: drag to select, release to copy.
 //!
-//! herdr does select-and-copy for every pane it draws — until the pane app
-//! turns mouse reporting on. Then herdr forwards the events to the app and
-//! skips its own selection entirely (`forward_pane_mouse_button` wins over
-//! `Selection::anchor`). dagr wants clicks, so dagr owes the user the rest:
-//! this module is the selection herdr can no longer do for us. Linear
-//! selection over the DRAWN frame, reverse-video highlight that survives
-//! the styling already in the line, and an OSC 52 write, which herdr
-//! re-emits to the host clipboard (`AppEvent::ClipboardWrite`).
+//! Terminal multiplexers and emulators handle select-and-copy — until the pane app
+//! turns mouse reporting on. Then events are forwarded to the app.
+//! dgr enables mouse clicks, so dgr provides the rest:
+//! this module provides linear selection over the drawn frame, reverse-video highlight
+//! that survives styling, and an OSC 52 write to copy to the system clipboard.
 //!
 //! Everything here works on painted lines — the strings we actually put on
 //! screen — so what you copy is what you saw, including the help overlay
@@ -183,9 +180,8 @@ pub fn highlight(line: &str, c0: usize, c1: usize) -> String {
     out
 }
 
-/// OSC 52 clipboard write. herdr parses this out of the pane's output and
-/// re-emits it through its own clipboard writer, so the copy lands on the
-/// host clipboard even when the session is remote.
+/// OSC 52 clipboard write. Emitted through standard escape sequences so
+/// modern terminal emulators and multiplexers copy to the host clipboard.
 pub fn osc52(text: &str) -> String {
     format!("\x1b]52;c;{}\x07", base64(text.as_bytes()))
 }

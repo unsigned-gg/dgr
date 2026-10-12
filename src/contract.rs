@@ -1,4 +1,4 @@
-//! Serde types for the dagr run-state contract, v3 (see CONTRACT.md).
+//! Serde types for the dgr run-state contract, v3 (see CONTRACT.md).
 //!
 //! Parsing is deliberately permissive: every field is optional at the type
 //! level and unknown fields are ignored, so structurally sparse documents
@@ -68,7 +68,7 @@ pub fn valid_identity(id: &str) -> bool {
 
 #[derive(Deserialize)]
 pub struct Doc {
-    pub dagr: Option<u64>,
+    pub dgr: Option<u64>,
     pub run: Option<Run>,
     pub generated_at: Option<String>,
     /// v2: recursive visual/organizational scopes. The run is the implicit
@@ -119,7 +119,7 @@ pub struct Task {
     pub unblock: Option<String>,
     pub note: Option<String>,
     /// Human-readable acceptance/gate criterion. It is displayed as
-    /// context, never executed by dagr.
+    /// context, never executed by dgr.
     pub criteria: Option<String>,
     pub policy: Option<Policy>,
     #[serde(default)]

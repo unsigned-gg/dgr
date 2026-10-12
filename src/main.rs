@@ -1,11 +1,11 @@
-//! dagr — a live DAG of your agent swarm, as a herdr plugin.
+//! dgr — mathematical and machine-sympathetic directed acyclic graph (DAG) runtime.
 //!
-//! `dagr check` lints a run-state document against CONTRACT.md v3,
-//! `dagr view` draws it, `dagr stats` reports flow analytics over it.
+//! `dgr check` lints a run-state document against CONTRACT.md v3,
+//! `dgr view` draws it, `dgr stats` reports flow analytics over it.
 
 mod check;
 mod contract;
-mod herdr;
+mod liveness;
 mod message;
 mod model;
 mod picker;
@@ -19,30 +19,23 @@ mod view;
 use std::process::ExitCode;
 
 const USAGE: &str = "\
-dagr — a live DAG of your agent swarm (herdr plugin)
+dgr — mathematical and machine-sympathetic directed acyclic graph runtime
 
 USAGE:
-  dagr check <run.json> [--json] [--strict]
+  dgr check <run.json> [--json] [--strict]
       lint a run-state document against the contract
-  dagr view [run.json] [--snapshot [--compact]] [--width N] [--select ID]
-      draw the run: interactive pane (j/k · tab · enter · m message · ? · q),
+  dgr view [run.json] [--snapshot [--compact]] [--width N] [--select ID]
+      draw the run: interactive terminal DAG (j/k · tab · enter · m message · ? · q),
       watches the file for changes; --snapshot prints one frame to stdout;
       --compact gives that snapshot the normal four-row browse inspector.
-      Without a path: $DAGR_RUN, then .dagr/run.json / run.json under the
-      herdr context cwd (waits for the file if none exists yet)
-      Set DAGR_WORKING_GLYPH=* for the ASCII working-state fallback.
-  dagr stats <run.json> [--json]
+      Without a path: $DGR_RUN, then .dgr/run.json / run.json under cwd
+      Set DGR_WORKING_GLYPH=* for the ASCII working-state fallback.
+  dgr stats <run.json> [--json]
       flow analytics over per-attempt timestamps: age, time-in-state,
       rework rate, WIP, critical path + naive ETA
-  dagr pane-cwd
-      plumbing for scripts/open-dagr.sh: resolve the user's cwd from
-      $HERDR_PLUGIN_CONTEXT_JSON (prints nothing if unavailable)
-  dagr --skill
+  dgr --skill
       print the producer skill — the agent-facing instructions for
-      writing and maintaining a run file. Bundled at build time, so the
-      printed copy always matches this binary; the companion examples
-      live beside it in skills/dagr-producer/examples/ under the plugin
-      root ($HERDR_PLUGIN_ROOT inside a herdr pane)
+      writing and maintaining a run file.
 
 check exit codes: 0 clean (warnings allowed unless --strict), 1 findings, 2 usage/IO
 ";
@@ -50,7 +43,7 @@ check exit codes: 0 clean (warnings allowed unless --strict), 1 findings, 2 usag
 /// Bundled at build time so the printed skill always matches this binary's
 /// release — and so a tree that shipped the binary without the skill fails
 /// to compile rather than shipping an agent-facing hole.
-const SKILL: &str = include_str!("../skills/dagr-producer/SKILL.md");
+const SKILL: &str = include_str!("../skills/dgr-producer/SKILL.md");
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -58,14 +51,13 @@ fn main() -> ExitCode {
         Some("check") => cmd_check(&args[1..]),
         Some("view") => cmd_view(&args[1..]),
         Some("stats") => stats::run(&args[1..]),
-        Some("pane-cwd") => cmd_pane_cwd(),
         Some("--skill") => {
             print!("{SKILL}");
             ExitCode::SUCCESS
         }
         Some("--version" | "-V") => {
             println!(
-                "dagr {} (contract v3; reads v1/v2)",
+                "dgr {} (contract v3; reads v1/v2)",
                 env!("CARGO_PKG_VERSION")
             );
             ExitCode::SUCCESS
@@ -75,34 +67,6 @@ fn main() -> ExitCode {
             ExitCode::from(2)
         }
     }
-}
-
-/// Resolve the *user's* cwd from the action context, for the launcher.
-/// Key order differs from `discover_run_file` on purpose: at action time
-/// the focused pane is the user's own pane (focus has not moved yet), so
-/// `focused_pane_cwd` is the most specific answer; at pane-launch time it
-/// may already name the dagr pane itself, which is why the viewer's own
-/// fallback prefers `workspace_cwd`. Prints nothing (exit 0) when the
-/// context is absent or unparseable — the launcher treats that as "no
-/// --cwd".
-fn cmd_pane_cwd() -> ExitCode {
-    if let Some(cwd) = std::env::var("HERDR_PLUGIN_CONTEXT_JSON")
-        .ok()
-        .and_then(|j| serde_json::from_str::<serde_json::Value>(&j).ok())
-        .and_then(|v| {
-            ["focused_pane_cwd", "workspace_cwd", "cwd"]
-                .iter()
-                .find_map(|k| {
-                    v.get(k)
-                        .and_then(|x| x.as_str())
-                        .filter(|s| !s.is_empty())
-                        .map(String::from)
-                })
-        })
-    {
-        println!("{cwd}");
-    }
-    ExitCode::SUCCESS
 }
 
 fn cmd_view(args: &[String]) -> ExitCode {
@@ -119,27 +83,27 @@ fn cmd_view(args: &[String]) -> ExitCode {
             "--width" => match it.next().and_then(|v| v.parse().ok()) {
                 Some(v) => width = Some(v),
                 None => {
-                    eprintln!("dagr view: --width needs a number");
+                    eprintln!("dgr view: --width needs a number");
                     return ExitCode::from(2);
                 }
             },
             "--select" => select = it.next().cloned(),
             other if !other.starts_with('-') && path.is_none() => path = Some(other.into()),
             other => {
-                eprintln!("dagr view: unexpected argument {other:?}\n\n{USAGE}");
+                eprintln!("dgr view: unexpected argument {other:?}\n\n{USAGE}");
                 return ExitCode::from(2);
             }
         }
     }
     if width.is_some_and(|width| width > scale::MAX_FRAME_WIDTH) {
         eprintln!(
-            "dagr view: --width exceeds the {} column limit",
+            "dgr view: --width exceeds the {} column limit",
             scale::MAX_FRAME_WIDTH
         );
         return ExitCode::from(2);
     }
     if compact_snapshot && !snapshot {
-        eprintln!("dagr view: --compact requires --snapshot");
+        eprintln!("dgr view: --compact requires --snapshot");
         return ExitCode::from(2);
     }
     let path = path.unwrap_or_else(discover_run_file);
@@ -152,58 +116,24 @@ fn cmd_view(args: &[String]) -> ExitCode {
     })
 }
 
-/// Where is the run file? Explicit beats implicit: `$DAGR_RUN`, then
-/// `.dagr/run.json` / `run.json` under the herdr-provided context cwd
-/// (`HERDR_PLUGIN_CONTEXT_JSON`: the pane process itself starts in the
-/// plugin's install dir, not where the user is). If nothing exists yet the
-/// default target is returned anyway — the viewer waits for it to appear.
+/// Where is the run file? Explicit beats implicit: `$DGR_RUN`,
+/// then `.dgr/run.json` / `run.json` under current working directory.
 fn discover_run_file() -> String {
-    // workspace_cwd first: focused_pane_cwd is computed at pane-launch
-    // time and may already name the (just-focused) dagr pane itself,
-    // whose cwd is the plugin install dir. The launcher resolves the
-    // user's cwd deterministically and passes it via --cwd; this env
-    // path is the fallback.
-    let ctx_cwd = std::env::var("HERDR_PLUGIN_CONTEXT_JSON")
-        .ok()
-        .and_then(|j| serde_json::from_str::<serde_json::Value>(&j).ok())
-        .and_then(|v| {
-            ["workspace_cwd", "focused_pane_cwd", "cwd"]
-                .iter()
-                .find_map(|k| {
-                    v.get(k)
-                        .and_then(|x| x.as_str())
-                        .filter(|s| !s.is_empty())
-                        .map(String::from)
-                })
-        });
-    if let Ok(p) = std::env::var("DAGR_RUN") {
+    if let Ok(p) = std::env::var("DGR_RUN") {
         if !p.is_empty() {
-            // A relative DAGR_RUN means "under the user's context", not
-            // under the plugin install dir the pane process starts in.
-            return match &ctx_cwd {
-                Some(cwd) if !std::path::Path::new(&p).is_absolute() => {
-                    format!("{cwd}/{p}")
-                }
-                _ => p,
-            };
+            return p;
         }
     }
-    // Absolute base always: inside herdr the process cwd is the plugin
-    // install dir, and a relative fallback would silently search there.
-    // An absolute path also makes the waiting banner name the directory
-    // actually searched.
-    let base = ctx_cwd.unwrap_or_else(|| {
-        std::env::current_dir()
-            .map(|d| d.display().to_string())
-            .unwrap_or_else(|_| ".".into())
-    });
-    for cand in [".dagr/run.json", "run.json"] {
+    let base = std::env::current_dir()
+        .map(|d| d.display().to_string())
+        .unwrap_or_else(|_| ".".into());
+    for cand in [".dgr/run.json", "run.json"] {
         let p = format!("{base}/{cand}");
         if std::path::Path::new(&p).exists() {
             return p;
         }
     }
-    format!("{base}/.dagr/run.json")
+    format!("{base}/run.json")
 }
 
 fn cmd_check(args: &[String]) -> ExitCode {
@@ -216,7 +146,7 @@ fn cmd_check(args: &[String]) -> ExitCode {
             "--strict" => strict = true,
             other if !other.starts_with('-') && path.is_none() => path = Some(other),
             other => {
-                eprintln!("dagr check: unexpected argument {other:?}\n\n{USAGE}");
+                eprintln!("dgr check: unexpected argument {other:?}\n\n{USAGE}");
                 return ExitCode::from(2);
             }
         }
@@ -229,7 +159,7 @@ fn cmd_check(args: &[String]) -> ExitCode {
     let raw = match scale::read_limited(path) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("dagr check: {e}");
+            eprintln!("dgr check: {e}");
             return ExitCode::from(2);
         }
     };

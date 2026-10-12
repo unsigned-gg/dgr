@@ -1,4 +1,4 @@
-# The dagr run-state contract — v3
+# The dgr run-state contract — v3
 
 > **Status: v3 (2026-08-20), with v1/v2 read compatibility.** The v1 object
 > model (§§1–8) remains valid; v2 added recursive projects, scope-correct gate
@@ -8,18 +8,18 @@
 > of the requirements produced by a field survey of existing orchestration
 > surfaces and by first-hand study of real multi-agent sessions, and each
 > item cites why it exists; the field-level encoding is the Schema v3
-> section below, enforced by `dagr check` and exercised by
+> section below, enforced by `dgr check` and exercised by
 > [`samples/run.json`](samples/run.json)
 > — which encodes the full reference scene (executed loop,
-> typed futures, fan-in gate, live review) as data. Existing `"dagr": 1`
-> documents remain accepted and need no migration; the run is simply their
-> only project scope. `dagr` renders
+> typed futures, fan-in gate, live review) as data. Existing `"dgr": 1`
+> documents remain accepted and need no migration;
+> the run is simply their only project scope. `dgr` renders
 > exactly this contract and nothing else: if a fact isn't in the contract,
 > the renderer must not invent it.
 
 ## Design stance
 
-`dagr` is a **representation kernel, not an enforcement kernel**. It carries
+`dgr` is a **representation kernel, not an enforcement kernel**. It carries
 no fencing, no CAS, no capabilities, and no scheduler/action engine. The producer (a file
 written by hand or an orchestrator) owns authority
 and settlement. The contract's job is to make the true shape of the run
@@ -32,7 +32,7 @@ Corollaries:
 - The renderer is a pure function of `(contract state, width)`.
 - Anything the producer did not assert is rendered as absent or `≈`/`!`
   tier — never silently upgraded.
-- herdr identities (pane IDs, agent IDs) are **volatile locators recorded on
+- Process/pane identities (pane IDs, agent IDs) are **volatile locators recorded on
   attempts**, never node identity. Pane IDs do not survive workspace moves.
 
 ## Object model
@@ -68,7 +68,7 @@ Stable identity, independent of any attempt at it.
   backward; it opens a new attempt.
 
 **Projection rules (normative).** Task state is a claim about the attempt
-record, and `dagr check` holds the two together (E150):
+record, and `dgr check` holds the two together (E150):
 
 | task state | requires of attempts |
 |---|---|
@@ -98,7 +98,7 @@ attempt is blocked first.
   and the focus card's cause chain render this verbatim. Causes point
   backward in time (E135/E136).
 - `actor` — who/what ran it; plus `locator` — the volatile runtime address
-  (herdr pane/agent ID) valid only while live, used for `[enter] focus`.
+  (pane/agent ID) valid only while live, used for `[enter] focus`.
 - `started_at`, `ended_at` — per-attempt timestamps. ETA, age, time-in-state,
   and rework-rate become queries, not regex over scrollback (the sessions
   studied all ended up hand-rolling duration analytics from timestamps
@@ -143,18 +143,14 @@ attempt is blocked first.
 Every terminal outcome carries a tier — never merged into the state:
 
 - `◆ verified` — mechanically checked (test run, git-provenance receipt:
-  commit descends from recorded base SHA, on-branch, in-scope — cadence's
-  check, generalized).
-- `◇ reported` — the actor asserted it through a typed envelope
-  (orc's `HERDR_ORC_RESULT` instinct). A missing/unparseable envelope is
-  `settled_unverified`, a *distinct* terminal state, not a soft `done`.
-- `≈ heuristic` — inferred (screen-classified, in herdr-loop's terms).
+  commit descends from recorded base SHA, on-branch, in-scope).
+- `◇ reported` — the actor asserted it through a typed envelope.
+  A missing/unparseable envelope is `settled_unverified`, a *distinct* terminal state, not a soft `done`.
+- `≈ heuristic` — inferred (screen-classified or exit-code based).
 - `! asserted` — bare claim, no structure.
 
-Why: the convergent instinct of three independent plugin authors (loop's
-detection tiers, cadence's receipts, orc's envelope) — "the agent said done"
-is not evidence. Pane survival and herdr's `done` (an unseen-ready
-projection) are **never** success evidence.
+Why: "the agent said done" is not evidence. Process survival and external `done`
+flags are **never** success evidence.
 
 ### 5. Loop policies — typed, emitted, not inferred
 
@@ -164,7 +160,7 @@ projection) are **never** success evidence.
   optional `after` chaining onto a sibling future node of the *same*
   policy, `loop_back` for return-to-sender stubs, `source` naming the rule
   that authored it) · `rounds_max` (declared round budget) · `gate_cmd`
-  (opaque producer metadata; dagr never executes it).
+  (opaque producer metadata; dgr never executes it).
 - The renderer draws **dotted futures** (`├┄ ╰┄`, `⟲` loop-back stubs, `○`
   node stubs) *only* from declared policy. Stubs are earned only by
   working/blocked nodes — a queued or settled node shows no speculation.
@@ -181,7 +177,7 @@ Per live attempt:
 - `queued_input` — composer lines typed but unsubmitted (a studied session
   was found with five lines sitting unsent).
 
-herdr's event stream is a cache-invalidation signal for these hints, not a
+An external liveness event stream or socket link is a cache-invalidation signal for these hints, not a
 work log; the contract state remains the producer's.
 
 ### 7. Human directives and decisions
@@ -199,7 +195,7 @@ hold attention") and makes "why does a3 exist" answerable on screen.
 
 ### 9. Operator messages — contextual, durable, orchestrator-owned
 
-`m` opens one editable composer targeted at the selected task/gate. dagr
+`m` opens one editable composer targeted at the selected task/gate. dgr
 ships three prompt starters—Use judgment, Get guidance, Snooze—but they are
 only editable text plus a default authority. `Tab` changes starter and
 `ctrl-t` changes authority independently:
@@ -209,7 +205,7 @@ only editable text plus a default authority. `Tab` changes starter and
   within the run's existing scope. It grants no broader authority.
 
 The operator can freely add model names, reasoning levels, multi-agent or
-independent-review instructions, or any other prose. dagr never interprets
+independent-review instructions, or any other prose. dgr never interprets
 it. The optional
 file next to the run, `actions.json`, has this no-code shape:
 
@@ -231,16 +227,16 @@ nine starters and surfaces invalid/unsupported configuration in its banner
 instead of silently changing behavior. Labels are capped at 80 bytes and each
 editable prompt at 32 KiB.
 
-The run declares `run.orchestrator {pane, agent}`. On Enter, dagr first
+The run declares `run.orchestrator {pane, agent}`. On Enter, dgr first
 appends the immutable raw message to adjacent `messages.jsonl`, including
 message id, run, task, document revision, chosen starter, authority, exact
 text, and destination. Only then
-does it call Herdr's native queued-input API (`agent.prompt`). Delivery or
-failure is a second append-only record. A new journal is owner-only (`0600`
+does it dispatch via the configured transport (`agent.prompt` over socket or CLI).
+Delivery or failure is a second append-only record. A new journal is owner-only (`0600`
 on Unix); it contains operator prose and should be treated as run data, not
 committed casually. Reads are filtered by `run.id`, so sibling run files may
-share the directory without showing each other's messages. Dagr enqueues one
-addressed Herdr message and stops; it has no scheduler, daemon, supervisor,
+share the directory without showing each other's messages. dgr enqueues one
+addressed message and stops; it has no scheduler, daemon, supervisor,
 cron service, lock service, or arbitrary subprocess execution path.
 
 The orchestrator correlates the eventual result by appending an event with
@@ -259,14 +255,14 @@ it. V3 producers omit it and use the §9 composer.
 ## Transport
 
 A single JSON document read from a path; watch = mtime poll or
-producer-touched signal file. Herdr is used only for locator hints, focus,
-and queued operator messages; it never supplies task truth. Canonical sample:
+producer-touched signal file. External runtime links are used only for locator hints, focus,
+and queued operator messages; they never supply task truth. Canonical sample:
 [`samples/run.json`](samples/run.json). (Earlier design studies used a
 legacy flat shape that predates this contract; it is not part of v1.)
 
 ## Schema v3 — field reference
 
-Top level: `dagr` (int, `1|2|3`; producers should write `3`) ·
+Top level: `dgr` (int, `1|2|3`; producers should write `3`) ·
 `run {id*, title, started_at, orchestrator {pane, agent}}` ·
 `generated_at` (staleness anchor) · `projects[]` · `tasks[]*` · `events[]` ·
 `actions` (opaque v1/v2 compatibility data, §10).
@@ -309,11 +305,11 @@ directive|message_resolved|note`) · `task`/`attempt` refs · `actor` · directi
 `task`, `message_id`, and `detail`. Append-only,
 ascending time.
 
-**v1/v2 migration:** none required for reading. Write `"dagr": 3` for new
+**v1/v2 migration:** none required for reading. Write `"dgr": 3` for new
 documents. Add `run.orchestrator` to enable messages, and omit legacy
 top-level `actions`; the pane never executes them in any readable version.
 
-## dagr check — findings
+## dgr check — findings
 
 Errors (exit 1): E001 not-a-document/parse · E100 version · E101 run.id ·
 E102 tasks missing · E103 empty orchestrator locator · E104 duplicate/malformed
@@ -344,7 +340,7 @@ task with no attempts (reviewing nothing).
 
 ## Admission and display bounds
 
-`dagr view`, `check`, and `stats` reject sources over 16 MiB and documents
+`dgr view`, `check`, and `stats` reject sources over 16 MiB and documents
 over 4,096 combined project/task/attempt/future items or 32,768 events.
 Snapshot width is capped at 4,096 columns. Producer text is retained in the
 parsed document; C0/C1 controls and terminal-active bidi controls are escaped
@@ -352,8 +348,8 @@ visibly only when text crosses the display boundary.
 
 ## Non-goals
 
-- No authority: `dagr` never settles, fences, or retries anything.
+- No authority: `dgr` never settles, fences, or retries anything.
 - No inference of structure: no scraping scrollback, no deriving deps from
   text, no guessing attempt boundaries.
-- No herdr-derived work state: herdr tells us *where* things are running and
+- No external-runtime-derived work state: process locators tell us *where* things are running and
   *whether pixels moved*, never *what is true*.

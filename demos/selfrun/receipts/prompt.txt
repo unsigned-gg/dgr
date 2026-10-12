@@ -11,13 +11,13 @@ the record: the ENVIRONMENT line originally named the operator's
 repository directory; it now states the invariant without the path.
 Nothing else was altered.)
 ────────────────────────────────────────────────────────────────────────
-You are a producer agent being onboarded to maintain a dagr run file.
+You are a producer agent being onboarded to maintain a dgr run file.
 
 ENVIRONMENT: work from the repository root; every path below is
 relative to it.
 
 METHOD — your ONLY methodology source is the skill:
-skills/dagr-producer/SKILL.md (relative to the repo root, which is your
+skills/dgr-producer/SKILL.md (relative to the repo root, which is your
 working directory). Read it first and follow it exactly. It will point
 you at CONTRACT.md's schema section and at its own examples/ directory;
 those two are allowed as the skill's references. Do NOT read the repo's
@@ -39,7 +39,7 @@ RECEIPTS — write into demos/selfrun/receipts/:
   changed). If your first check was already clean, write exactly that.
 
 VALIDATOR: follow the skill's preflight. (In this environment the repo
-build exists; export DAGR_BIN=target/release/dagr from the repo root is
+build exists; export DGR_BIN=target/release/dgr from the repo root is
 an acceptable resolution.)
 
 FACTS TO MODEL (authoritative; encode them per the skill — states,
@@ -47,16 +47,16 @@ causes, evidence tiers, gates, policy, events are YOUR calls to get
 right). All clock times below are local America/Los_Angeles on
 2026-08-14; write timestamps as ISO-8601 with the -07:00 offset.
 
-The run: an autonomous overnight build of the herdr-dagr plugin,
+The run: an autonomous overnight build of the dgr engine,
 directed by the human operator (name them "operator") at 00:05 with a
 standing rule: run milestones M0-M5 autonomously; every milestone gets
 TWO independent reviews (an opus-5 reviewer agent and a gpt-5.6-sol
 reviewer agent); revise until findings are addressed; commit everything.
 That instruction is the run's one human directive. The run started at
-00:05 (the directive). Reviewer agents run in herdr panes: the opus
+00:05 (the directive). Reviewer agents run in terminal panes: the opus
 reviewer in pane wF:pK, the gpt reviewer in pane wF:pM. The main
 autonomous session ("orchestrator-main") and the selfrun producer
-agents are NOT herdr panes — use agent-name locators for them, never
+agents are NOT panes — use agent-name locators for them, never
 pane locators.
 
 Evidence discipline for receipts: cite only artifacts a reader of THIS
@@ -69,7 +69,7 @@ verdict summary, no file path.
 Work items and their real histories:
 - M0 contract freeze + validator: one attempt, done 00:26. Verified —
   receipt: "samples/run.json + samples/states.json strict-clean under
-  dagr check (in-tree)".
+  dgr check (in-tree)".
 - M1 renderer: attempt 1 done 00:45 (verified: headless snapshot tests,
   in-tree under tests/). Both M1 reviews found defects — attempt 1 was
   sent back; attempt 2 (the revision pass, 01:06-01:29) done 01:29,
@@ -82,7 +82,7 @@ Work items and their real histories:
 - Gate "M1 dual review complete": fan-in over the two M1 reviews; both
   landed by 01:15 — encode the promotion honestly as an event. The
   merged-ledger work it gated is part of M1 attempt 2 above.
-- M2 herdr integration: attempt 1 done 01:01; sent back by the gpt M2
+- M2 liveness integration: attempt 1 done 01:01; sent back by the gpt M2
   review → attempt 2 done 01:56 (verified: fake-daemon session tests +
   live event-envelope verification; tests in-tree); the opus M2 review
   then landed more findings → attempt 3 done 02:14 (verified: suite
@@ -130,7 +130,7 @@ Work items and their real histories:
   supersedes attempt 2 for the public release (the skill's cause
   vocabulary has a type for exactly this). When your file passes
   strict-clean you may settle attempt 3 as done, evidence "verified",
-  receipt "dagr check --strict clean; receipts in
+  receipt "dgr check --strict clean; receipts in
   demos/selfrun/receipts/", IN THE SAME final write.
 - M5 public release preparation: one attempt, working since 02:42
   (width matrix on real panes, public-tree assembly script with

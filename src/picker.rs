@@ -90,7 +90,7 @@ pub fn fuzzy(hay: &str, needle: &str) -> bool {
     true
 }
 
-/// Contract documents open with a `"dagr"` version key — 2KB of head is
+/// Contract documents open with a `"dgr"` version key — 2KB of head is
 /// enough to tell a run file from any other JSON without parsing it.
 fn sniff(p: &Path) -> bool {
     use std::io::Read;
@@ -100,7 +100,8 @@ fn sniff(p: &Path) -> bool {
     let mut buf = [0u8; 2048];
     let n = f.read(&mut buf).unwrap_or(0);
     let head = String::from_utf8_lossy(&buf[..n]);
-    head.contains("\"dagr\"") && (head.contains("\"tasks\"") || head.contains("\"run\""))
+    head.contains("\"dgr\"")
+        && (head.contains("\"tasks\"") || head.contains("\"run\""))
 }
 
 const SKIP_DIRS: [&str; 7] = [
@@ -173,7 +174,7 @@ fn mru_file() -> Option<PathBuf> {
         .filter(|p| !p.as_os_str().is_empty())
         .or(windows_base)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/state")))?;
-    Some(base.join("dagr/recent"))
+    Some(base.join("dgr/recent"))
 }
 
 /// Remember an opened run file (front of the list, deduped, capped).

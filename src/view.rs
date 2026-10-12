@@ -1,10 +1,10 @@
-//! `dagr view` — the pane. Interactive by default (crossterm raw mode,
+//! `dgr view` — the pane. Interactive by default (crossterm raw mode,
 //! alternate screen, watch-on-mtime); `--snapshot` prints one frame to
 //! stdout for demos, CI capture, and eyeballing against the Python
 //! reference. The renderer never crashes on bad input: contract errors
 //! become a banner, and the last good scene stays up.
 
-use crate::{check, contract::Doc, herdr, message, model, picker, render, select, stats, style};
+use crate::{check, contract::Doc, liveness, message, model, picker, render, select, stats, style};
 use crossterm::{
     cursor, event, execute, queue,
     terminal::{self, ClearType},
@@ -44,7 +44,7 @@ fn load(path: &str) -> Result<Loaded, String> {
     let mut banner = match report.errors() {
         0 => None,
         n => Some(format!(
-            "{n} contract error{} — run `dagr check {path}`; drawing what parses",
+            "{n} contract error{} — run `dgr check {path}`; drawing what parses",
             if n == 1 { "" } else { "s" }
         )),
     };
@@ -105,7 +105,7 @@ pub fn run(args: ViewArgs) -> ExitCode {
     match interactive(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("dagr view: {e}");
+            eprintln!("dgr view: {e}");
             ExitCode::from(2)
         }
     }
@@ -115,7 +115,7 @@ fn snapshot(args: &ViewArgs) -> ExitCode {
     let loaded = match load(&args.path) {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("dagr view: {e}");
+            eprintln!("dgr view: {e}");
             return ExitCode::from(1);
         }
     };
@@ -138,7 +138,7 @@ fn snapshot(args: &ViewArgs) -> ExitCode {
         flash: None,
         stale_min: None, // snapshots are for capture; staleness is a live concern
         watching: false,
-        herdr: None, // hints are a live concern too
+        liveness: None, // hints are a live concern too
         prompt: None,
         messages: &loaded.message_summaries,
     };
@@ -166,7 +166,7 @@ enum Mode {
         buf: String,
     },
     /// One editable contextual message. Starters only prefill text;
-    /// authority remains a separate field and Herdr owns delivery.
+    /// authority remains a separate field.
     Message {
         draft: message::Draft,
     },
@@ -180,7 +180,7 @@ struct App {
     flash: Option<(String, u8)>, // message, ticks-to-live
     help: bool,
     scroll: usize,
-    herdr: Option<herdr::Link>,
+    liveness: Option<liveness::Link>,
     mode: Mode,
     /// In-flight focus result (focus runs off-thread; even a bounded CLI
     /// wait has no business freezing the render loop).
@@ -224,8 +224,8 @@ struct App {
 }
 
 impl App {
-    fn hints(&self) -> Option<herdr::Hints> {
-        self.herdr.as_ref().map(|l| l.hints())
+    fn hints(&self) -> Option<liveness::Hints> {
+        self.liveness.as_ref().map(|l| l.hints())
     }
 
     fn view_opts(&self) -> model::ViewOpts<'_> {
@@ -248,7 +248,7 @@ impl App {
 
     /// Tell the link which locator panes matter right now (live attempts).
     fn update_watch(&self) {
-        let Some(link) = &self.herdr else { return };
+        let Some(link) = &self.liveness else { return };
         let mut panes = Vec::new();
         for t in self.loaded.doc.tasks.as_deref().unwrap_or(&[]) {
             for a in &t.attempts {
@@ -742,7 +742,7 @@ impl App {
         let msg = match locator {
             None => "no live locator on this row".into(),
             Some((None, None)) => "locator names neither pane nor agent".into(),
-            Some(_) if self.herdr.is_none() => "not inside herdr — cannot focus".into(),
+            Some(_) if self.liveness.is_none() => "liveness link unavailable — cannot focus".into(),
             Some(_) if self.bg_rx.is_some() => "focus already in flight".into(),
             Some((pane, agent)) => {
                 let (tx, rx) = std::sync::mpsc::channel();
@@ -751,9 +751,9 @@ impl App {
                     .unwrap_or_else(|| agent.clone().unwrap_or_default());
                 std::thread::spawn(move || {
                     let r = match (pane, agent) {
-                        (Some(p), _) => herdr::focus_pane(&p).map(|()| format!("focused {p}")),
+                        (Some(p), _) => liveness::focus_pane(&p).map(|()| format!("focused {p}")),
                         (None, Some(a)) => {
-                            herdr::focus_agent(&a).map(|()| format!("focused agent {a}"))
+                            liveness::focus_agent(&a).map(|()| format!("focused agent {a}"))
                         }
                         (None, None) => unreachable!(),
                     };
@@ -1051,7 +1051,7 @@ fn interactive(args: &ViewArgs) -> Result<(), String> {
         flash: None,
         help: false,
         scroll: 0,
-        herdr: herdr::Link::start(),
+        liveness: liveness::Link::start(),
         mode: Mode::Normal,
         bg_rx: None,
         hits: Vec::new(),
@@ -1289,8 +1289,7 @@ fn event_loop(app: &mut App, stdout: &mut std::io::Stdout) -> Result<(), String>
                         MouseEventKind::Up(MouseButton::Left) => {
                             let dragged = app.sel.is_some_and(|s| s.dragged);
                             if dragged {
-                                // herdr's contract with the user: let go of
-                                // a selection and it is on the clipboard
+                                // user release: let go of a selection and copy to clipboard
                                 let (w, _) = terminal::size().map_err(|e| e.to_string())?;
                                 let text = app.selection_text(w as usize);
                                 if !text.is_empty() {
@@ -1749,7 +1748,7 @@ fn draw(app: &mut App, stdout: &mut std::io::Stdout) -> Result<(), String> {
                 flash: app.flash.as_ref().map(|(m, _)| m.clone()),
                 stale_min: stale_min(app.loaded.generated_min),
                 watching: true,
-                herdr: hints.as_ref(),
+                liveness: hints.as_ref(),
                 prompt: app.prompt_line(),
                 messages: &app.loaded.message_summaries,
             },
@@ -1869,7 +1868,7 @@ mod tests {
             path: "run.json".into(),
             loaded: Loaded {
                 doc: serde_json::from_str(
-                    r#"{"dagr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"tasks":[]}"#,
+                    r#"{"dgr":3,"run":{"id":"r","orchestrator":{"pane":"wX:p1"}},"tasks":[]}"#,
                 )
                 .unwrap(),
                 banner: None,
@@ -1884,7 +1883,7 @@ mod tests {
             flash: None,
             help: false,
             scroll: 0,
-            herdr: None,
+            liveness: None,
             mode: Mode::Normal,
             bg_rx: None,
             hits: Vec::new(),
@@ -1909,7 +1908,7 @@ mod tests {
     fn keyboard_navigation_treats_projects_as_real_inert_nodes() {
         let mut app = message_test_app();
         app.loaded.doc = serde_json::from_value(serde_json::json!({
-            "dagr": 3,
+            "dgr": 3,
             "run": {"id": "projects"},
             "projects": [
                 {"id": "ROOT", "title": "Recovery"},
@@ -2021,20 +2020,20 @@ mod tests {
     #[test]
     fn reload_cancels_a_message_when_its_unique_target_becomes_duplicate() {
         let dir = std::env::temp_dir().join(format!(
-            "dagr-message-reload-{}-{:?}",
+            "dgr-message-reload-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("run.json");
         let unique = r#"{
-            "dagr":3,
+            "dgr":3,
             "run":{"id":"r","orchestrator":{"pane":"wX:p1"}},
             "generated_at":"2026-08-20T01:02:03Z",
             "tasks":[{"id":"A","state":"queued","deps":[],"attempts":[]}]
         }"#;
         let duplicate = r#"{
-            "dagr":3,
+            "dgr":3,
             "run":{"id":"r","orchestrator":{"pane":"wX:p1"}},
             "generated_at":"2026-08-20T01:02:04Z",
             "tasks":[
@@ -2081,7 +2080,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         serde_json::from_value(serde_json::json!({
-            "dagr": 3,
+            "dgr": 3,
             "run": {"id": "tall"},
             "tasks": tasks
         }))
@@ -2099,7 +2098,7 @@ mod tests {
                 flash: None,
                 stale_min: None,
                 watching: false,
-                herdr: None,
+                liveness: None,
                 prompt,
                 messages: &[],
             },
@@ -2123,7 +2122,7 @@ mod tests {
                 flash: None,
                 stale_min: None,
                 watching: false,
-                herdr: None,
+                liveness: None,
                 prompt: None,
                 messages: &[],
             },

@@ -1,11 +1,10 @@
-//! herdr integration — liveness hints ONLY. The link speaks the
-//! socket API (newline-delimited JSON over `$HERDR_SOCKET_PATH`, protocol
-//! 19): `session.snapshot` to learn which panes exist and what their agents
-//! are doing, plus a held `events.subscribe` connection for pane lifecycle
-//! and per-locator agent-status changes. Task state NEVER comes from here —
-//! the contract file is the sole authority; these hints only annotate
-//! locators (live status, dead-pane marks) and power `[enter]` focus. No
-//! herdr, a dead socket, a mid-session restart: all degrade to "no hints",
+//! Liveness hints and external dispatch link. Speaks newline-delimited JSON
+//! over a Unix domain socket (`$DGR_SOCKET_PATH`, protocol 19):
+//! `session.snapshot` to learn which panes/agents exist and what they are doing,
+//! plus a held `events.subscribe` connection for lifecycle events and status changes.
+//! Task state NEVER comes from here — the contract file is the sole authority;
+//! these hints only annotate locators (live status, dead marks) and power `[enter]` focus.
+//! A dead socket or mid-session restart degrades gracefully to "no hints",
 //! never to a crash or a stale claim.
 //!
 //! Two envelope families arrive on the subscription (verified against a
@@ -28,7 +27,7 @@ use std::time::Duration;
 pub struct Hints {
     /// Subscription is acknowledged and the post-subscribe snapshot seeded.
     pub connected: bool,
-    /// pane_id → agent_status. herdr's `AgentStatus` is a closed enum:
+    /// pane_id → agent_status. `AgentStatus` is a closed enum:
     /// `idle | working | blocked | done | unknown` — a pane with no
     /// detected agent reports "unknown" (verified against a live
     /// snapshot; the field is present on every pane). A missing key while
@@ -57,13 +56,13 @@ pub struct Link {
 }
 
 impl Link {
-    /// Detect herdr from the environment. `None` (no socket path in the
-    /// environment) is the normal non-herdr case and disables hints and
+    /// Detect liveness socket from the environment. `None` (no socket path in the
+    /// environment) is the normal standalone case and disables hints and
     /// focus — nothing else. A path that does not exist YET is not a
     /// reason to opt out: the daemon may be restarting, and the worker's
     /// retry loop will find the socket when it reappears.
     pub fn start() -> Option<Link> {
-        let sock = std::env::var("HERDR_SOCKET_PATH")
+        let sock = std::env::var("DGR_SOCKET_PATH")
             .ok()
             .filter(|s| !s.is_empty())?;
         Some(Link::start_at(sock))
@@ -172,7 +171,7 @@ fn fetch_snapshot(sock: &str) -> Result<HashMap<String, String>, ()> {
 
     let mut conn = UnixStream::connect(sock).map_err(|_| ())?;
     conn.set_read_timeout(Some(Duration::from_secs(5))).ok();
-    conn.write_all(b"{\"id\":\"dagr-snap\",\"method\":\"session.snapshot\",\"params\":{}}\n")
+    conn.write_all(b"{\"id\":\"dgr-snap\",\"method\":\"session.snapshot\",\"params\":{}}\n")
         .map_err(|_| ())?;
     let mut line = String::new();
     BufReader::new(&conn).read_line(&mut line).map_err(|_| ())?;
@@ -233,7 +232,7 @@ fn session(
         subs.push(serde_json::json!({"type": "pane.agent_status_changed", "pane_id": p}));
     }
     let req = serde_json::json!({
-        "id": "dagr-sub", "method": "events.subscribe",
+        "id": "dgr-sub", "method": "events.subscribe",
         "params": {"subscriptions": subs}
     });
     let mut conn = UnixStream::connect(sock).map_err(|_| ())?;
@@ -257,7 +256,7 @@ fn session(
                 Ok(_) if line.len() > MAX_LINE => return Err(()),
                 Ok(_) => {
                     let v = parse_record(&line)?;
-                    if v.get("id").and_then(|i| i.as_str()) == Some("dagr-sub") {
+                    if v.get("id").and_then(|i| i.as_str()) == Some("dgr-sub") {
                         let ok = v.pointer("/result/type").and_then(|t| t.as_str())
                             == Some("subscription_started");
                         if !ok {
@@ -453,10 +452,10 @@ fn apply_event(state: &Arc<Mutex<Hints>>, event: &str, data: Option<&serde_json:
 
 #[cfg(unix)]
 fn socket_request(method: &str, params: serde_json::Value) -> Result<(), String> {
-    let sock = std::env::var("HERDR_SOCKET_PATH")
+    let sock = std::env::var("DGR_SOCKET_PATH")
         .ok()
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| "not inside herdr".to_string())?;
+        .ok_or_else(|| "no liveness socket in environment".to_string())?;
     socket_request_at(&sock, method, params)
 }
 
@@ -465,31 +464,31 @@ fn socket_request_at(sock: &str, method: &str, params: serde_json::Value) -> Res
     use std::io::{BufRead, BufReader, Write};
     use std::os::unix::net::UnixStream;
 
-    let req = serde_json::json!({"id": "dagr-focus", "method": method, "params": params});
-    let mut conn = UnixStream::connect(sock).map_err(|e| format!("herdr socket: {e}"))?;
+    let req = serde_json::json!({"id": "dgr-focus", "method": method, "params": params});
+    let mut conn = UnixStream::connect(sock).map_err(|e| format!("liveness socket: {e}"))?;
     conn.set_read_timeout(Some(Duration::from_secs(3))).ok();
     conn.set_write_timeout(Some(Duration::from_secs(3))).ok();
     conn.write_all((req.to_string() + "\n").as_bytes())
-        .map_err(|e| format!("herdr socket: {e}"))?;
+        .map_err(|e| format!("liveness socket: {e}"))?;
     let mut line = String::new();
     BufReader::new(&conn)
         .read_line(&mut line)
-        .map_err(|e| format!("herdr socket: {e}"))?;
+        .map_err(|e| format!("liveness socket: {e}"))?;
     let v: serde_json::Value =
-        serde_json::from_str(&line).map_err(|_| "herdr: malformed response".to_string())?;
+        serde_json::from_str(&line).map_err(|_| "liveness: malformed response".to_string())?;
     if let Some(err) = v.get("error") {
         let msg = err
             .get("message")
             .and_then(|m| m.as_str())
             .unwrap_or("request failed");
-        return Err(format!("herdr: {msg}"));
+        return Err(format!("liveness: {msg}"));
     }
     Ok(())
 }
 
 #[cfg(not(unix))]
 fn socket_request(_: &str, _: serde_json::Value) -> Result<(), String> {
-    Err("herdr link requires unix sockets".into())
+    Err("liveness link requires unix sockets".into())
 }
 
 /// Focus a locator pane by id (`pane.focus`).
@@ -502,8 +501,7 @@ pub fn focus_agent(name: &str) -> Result<(), String> {
     socket_request("agent.focus", serde_json::json!({"target": name}))
 }
 
-/// Queue an operator message to an orchestrator pane/agent. Herdr owns the
-/// input queue; dagr neither waits for nor interprets the response.
+/// Queue an operator message to an orchestrator pane/agent.
 #[cfg(unix)]
 pub fn prompt(target: &str, text: &str) -> Result<(), String> {
     socket_request(
@@ -512,7 +510,7 @@ pub fn prompt(target: &str, text: &str) -> Result<(), String> {
     )
 }
 
-/// Herdr uses a CLI transport on platforms without Unix-domain sockets.
+/// CLI transport on platforms without Unix-domain sockets.
 #[cfg(any(not(unix), test))]
 fn prompt_cli_args<'a>(target: &'a str, text: &'a str) -> [&'a str; 4] {
     ["agent", "prompt", target, text]
@@ -522,7 +520,7 @@ fn prompt_cli_args<'a>(target: &'a str, text: &'a str) -> [&'a str; 4] {
 fn select_prompt_cli_bin(configured: Option<std::ffi::OsString>) -> std::ffi::OsString {
     configured
         .filter(|bin| !bin.is_empty())
-        .unwrap_or_else(|| std::ffi::OsString::from("herdr"))
+        .unwrap_or_else(|| std::ffi::OsString::from("dgr-dispatch"))
 }
 
 #[cfg(any(not(unix), test))]
@@ -530,13 +528,13 @@ fn prompt_cli_at(bin: &std::ffi::OsStr, target: &str, text: &str) -> Result<(), 
     let output = std::process::Command::new(bin)
         .args(prompt_cli_args(target, text))
         .output()
-        .map_err(|e| format!("cannot launch herdr: {e}"))?;
+        .map_err(|e| format!("cannot launch dispatch CLI: {e}"))?;
     if output.status.success() {
         Ok(())
     } else {
         let detail = String::from_utf8_lossy(&output.stderr).trim().to_string();
         Err(if detail.is_empty() {
-            "herdr prompt failed".into()
+            "dispatch prompt failed".into()
         } else {
             detail
         })
@@ -545,7 +543,7 @@ fn prompt_cli_at(bin: &std::ffi::OsStr, target: &str, text: &str) -> Result<(), 
 
 #[cfg(not(unix))]
 pub fn prompt(target: &str, text: &str) -> Result<(), String> {
-    let bin = select_prompt_cli_bin(std::env::var_os("HERDR_BIN_PATH"));
+    let bin = select_prompt_cli_bin(std::env::var_os("DGR_DISPATCH_BIN"));
     prompt_cli_at(&bin, target, text)
 }
 
@@ -676,7 +674,7 @@ mod tests {
         assert!(parse_record(r#"{"error":{"code":1}}"#).is_err());
         assert!(parse_record(r#"[1,2]"#).is_err());
         assert!(
-            parse_record(r#"{"id":"dagr-sub","result":{"type":"subscription_started"}}"#).is_ok()
+            parse_record(r#"{"id":"dgr-sub","result":{"type":"subscription_started"}}"#).is_ok()
         );
         assert!(parse_record(r#"{"event":"pane_closed","data":{"pane_id":"p"}}"#).is_ok());
     }
@@ -687,12 +685,12 @@ mod tests {
         use std::os::unix::net::UnixListener;
 
         let dir = std::env::temp_dir().join(format!(
-            "dagr-prompt-test-{}-{:?}",
+            "dgr-prompt-test-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let sock = dir.join("herdr.sock");
+        let sock = dir.join("dgr.sock");
         let listener = match UnixListener::bind(&sock) {
             Ok(listener) => listener,
             Err(e) => {
@@ -711,7 +709,7 @@ mod tests {
             assert_eq!(req["params"]["text"], "hello\nworld");
             reader
                 .get_mut()
-                .write_all(b"{\"id\":\"dagr-focus\",\"result\":{}}\n")
+                .write_all(b"{\"id\":\"dgr-focus\",\"result\":{}}\n")
                 .unwrap();
         });
         socket_request_at(
@@ -734,20 +732,20 @@ mod tests {
         );
         assert_eq!(
             select_prompt_cli_bin(None),
-            std::ffi::OsString::from("herdr")
+            std::ffi::OsString::from("dgr-dispatch")
         );
         assert_eq!(
             select_prompt_cli_bin(Some(std::ffi::OsString::new())),
-            std::ffi::OsString::from("herdr")
+            std::ffi::OsString::from("dgr-dispatch")
         );
 
         let dir = std::env::temp_dir().join(format!(
-            "dagr-herdr-bin-{}-{:?}",
+            "dgr-dispatch-bin-{}-{:?}",
             std::process::id(),
             std::thread::current().id()
         ));
         std::fs::create_dir_all(&dir).unwrap();
-        let bin = dir.join("fake herdr");
+        let bin = dir.join("fake-dgr");
         let log = dir.join("args");
         std::fs::write(
             &bin,
@@ -779,9 +777,9 @@ mod tests {
         use std::io::{BufRead, BufReader, Write};
         use std::os::unix::net::UnixListener;
 
-        let dir = std::env::temp_dir().join(format!("dagr-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dgr-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let sock = dir.join("herdr.sock");
+        let sock = dir.join("dgr.sock");
         let _ = std::fs::remove_file(&sock);
         // Sandboxed CI/review environments sometimes deny AF_UNIX binds;
         // that is an environment limit, not a product signal — skip loudly.
@@ -802,7 +800,7 @@ mod tests {
                 r.read_line(&mut line).unwrap();
                 assert!(line.contains("session.snapshot"));
                 let resp = format!(
-                    "{{\"id\":\"dagr-snap\",\"result\":{{\"snapshot\":{{\"panes\":[{panes}]}}}}}}\n"
+                    "{{\"id\":\"dgr-snap\",\"result\":{{\"snapshot\":{{\"panes\":[{panes}]}}}}}}\n"
                 );
                 r.get_ref().write_all(resp.as_bytes()).unwrap();
             };
@@ -820,7 +818,7 @@ mod tests {
             assert!(line.contains("events.subscribe"));
             assert!(line.contains("\"pane_id\":\"wF:pA\"")); // watched, known
             let mut w = r.get_ref();
-            w.write_all(b"{\"id\":\"dagr-sub\",\"result\":{\"type\":\"subscription_started\"}}\n")
+            w.write_all(b"{\"id\":\"dgr-sub\",\"result\":{\"type\":\"subscription_started\"}}\n")
                 .unwrap();
             // replayed history: a pane that was created and closed long ago
             w.write_all(b"{\"event\":\"pane_created\",\"data\":{\"pane\":{\"pane_id\":\"wF:pOld\"},\"type\":\"pane_created\"}}\n").unwrap();
@@ -891,9 +889,9 @@ mod tests {
         use std::io::{BufRead, BufReader, Write};
         use std::os::unix::net::UnixListener;
 
-        let dir = std::env::temp_dir().join(format!("dagr-test-noack-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("dgr-test-noack-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let sock = dir.join("herdr.sock");
+        let sock = dir.join("dgr.sock");
         let _ = std::fs::remove_file(&sock);
         // Same environment guard as session_against_fake_daemon.
         let listener = match UnixListener::bind(&sock) {
@@ -913,7 +911,7 @@ mod tests {
             let mut line = String::new();
             r.read_line(&mut line).unwrap();
             r.get_ref()
-                .write_all(b"{\"id\":\"dagr-snap\",\"result\":{\"snapshot\":{\"panes\":[]}}}\n")
+                .write_all(b"{\"id\":\"dgr-snap\",\"result\":{\"snapshot\":{\"panes\":[]}}}\n")
                 .unwrap();
             // subscription accepted, request read, then… silence
             let (sub, _) = listener.accept().unwrap();

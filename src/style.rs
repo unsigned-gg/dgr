@@ -88,7 +88,7 @@ pub fn state_glyph(state: &str) -> char {
         // Some terminal/font stacks fall back to a mismatched face for
         // geometric symbols. ◎ is the coherent default; an explicit `*`
         "working" => {
-            if let Ok(val) = std::env::var("DAGR_WORKING_GLYPH") {
+            if let Ok(val) = std::env::var("DGR_WORKING_GLYPH") {
                 if let Some(c) = val.chars().next() {
                     if val.chars().count() == 1 {
                         return c;
