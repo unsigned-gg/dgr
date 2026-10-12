@@ -1,5 +1,7 @@
 # dgr
 
+[![License: Apache-2.0 OR MIT](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue.svg)](https://github.com/unsigned-gg/.github)
+
 Mathematical and machine-sympathetic directed acyclic graph (DAG) execution runtime, state engine, and live terminal visualization in pure Rust.
 
 [![the compact dgr cockpit at 72 columns: trace above a docked active-work inspector](assets/pane-cockpit.png)](https://raw.githubusercontent.com/unsigned-gg/dgr/main/assets/pane-cockpit.png)
@@ -134,3 +136,7 @@ Licensed under either of:
 - [MIT License](LICENSE-MIT)
 
 at your option.
+
+## Principles
+
+See the [unsigned-gg principles](https://github.com/unsigned-gg/.github) for the architectural doctrine and community standards.
