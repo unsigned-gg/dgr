@@ -1,3 +1,7 @@
 target/
+bin/
 *.log
 .dgr/
+
+# Lane persona (lane-persona, ephemeral)
+.agents/

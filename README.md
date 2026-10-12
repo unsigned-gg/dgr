@@ -124,6 +124,7 @@ flowchart LR
   - `view.rs`: Interactive event loop, crossterm raw mode, and file watcher.
   - `stats.rs`: Flow and throughput analytics engine.
 - [`skills/dgr-producer/`](skills/dgr-producer/SKILL.md): Standardized agent skill for generating and maintaining valid run files.
+- [`specs/`](specs/README.md): Architecture specifications (LeanSpec + EARS) and multi-horizon development roadmap ([SPEC-0001](specs/SPEC-0001-dgr-architecture-and-roadmap.md)).
 - [`samples/`](samples/): Canonical test fixtures (`run.json`, `states.json`).
 
 ---
