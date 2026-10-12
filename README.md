@@ -6,7 +6,7 @@ Mathematical and machine-sympathetic directed acyclic graph (DAG) execution runt
 
 [![the compact dgr cockpit at 72 columns: trace above a docked active-work inspector](assets/pane-cockpit.png)](https://raw.githubusercontent.com/unsigned-gg/dgr/main/assets/pane-cockpit.png)
 
-`dgr` is an open-source (Apache-2.0 / MIT) engine for representing, validating, and interacting with complex directed acyclic workflows. It treats workflow execution as a formal DAG with strict mathematical invariants, separating work claims from verification receipts.
+`dgr` is an open-source (Apache-2.0 / MIT) engine for representing, validating, and interacting with complex directed acyclic workflows. It treats workflow execution as compiled microcode on silicon: strict mathematical invariants, bit-parallel dependency resolution, and zero-allocation critical path math, separating work claims from verification receipts.
 
 ## Key Capabilities
 
