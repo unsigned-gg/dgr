@@ -39,10 +39,12 @@ jobs:
           echo "spec-check: ok ($n specs validated; .lean-spec present)"
       # Stub: installs nothing. The estate `lsc` binary is not installed on runners yet.
       # The vilicus pinned lsc and its reusable job will replace this step.
-      - name: lsc check specs/ (stub)
+      # Advisory: lsc 0.2.0 disagrees with this repo's spec format (R04 H1 naming, R05 sections).
+      # Estate rule (2026-10-18): where they disagree, the repo's own spec-check above is the gate.
+      - name: lsc check specs/ (stub, advisory)
         run: |
           if command -v lsc >/dev/null 2>&1; then
-            lsc check specs/
+            lsc check specs/ || echo "::warning::lsc check specs/ reported findings; advisory only, the spec-check step is the gate."
           else
             echo "::notice::lsc is not installed yet; the vilicus pinned lsc and reusable job will replace this stub."
           fi
