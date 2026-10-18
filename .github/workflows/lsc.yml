@@ -1,0 +1,75 @@
+# LeanSpec PR check (estate standard; Linear EST-1169, parent CER-2890).
+#
+# Runs on the internal estate fleet, never on a GitHub-hosted runner. This repository is public,
+# so the job runs only for pull requests from branches of this repository: code from a fork never
+# runs on an internal runner. The spec-link step is WARNING ONLY and always exits 0. It becomes a
+# required check only after the Linear backfill, on a separate operator go.
+name: lsc
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lsc:
+    name: lsc
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: {group: ent-default, labels: [ci-rust]}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: spec-check (structural)
+        run: |
+          test -f .lean-spec || { echo "::error::.lean-spec is missing"; exit 1; }
+          n=0
+          for f in specs/SPEC-[0-9][0-9][0-9][0-9]-*.md; do
+            [ -e "$f" ] || continue
+            n=$((n + 1))
+            if [ "$(head -n 1 "$f")" != "---" ] || ! grep -q '^status:' "$f"; then
+              echo "::error file=$f::spec has no front matter or no status"
+              exit 1
+            fi
+          done
+          [ "$n" -gt 0 ] || { echo "::error::no specs/SPEC-NNNN-*.md found"; exit 1; }
+          echo "spec-check: ok ($n specs validated; .lean-spec present)"
+      # Stub: installs nothing. The estate `lsc` binary is not installed on runners yet.
+      # The vilicus pinned lsc and its reusable job will replace this step.
+      - name: lsc check specs/ (stub)
+        run: |
+          if command -v lsc >/dev/null 2>&1; then
+            lsc check specs/
+          else
+            echo "::notice::lsc is not installed yet; the vilicus pinned lsc and reusable job will replace this stub."
+          fi
+      - name: spec-link (warning only)
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          # Title, body and base ref arrive only through env: above, never interpolated here.
+          # Here-strings, not pipes: under pipefail a pipe into grep -q can fail on SIGPIPE.
+          if ! grep -Eq '^(feat|fix)(\([^)]*\))?!?:' <<<"$PR_TITLE"; then
+            echo "not a feat or fix title; spec-link check skipped"
+            exit 0
+          fi
+          changed=$(git diff --name-only "origin/$BASE_REF...HEAD")
+          touched=0
+          if grep -Eq '^(specs/|\.lean-spec$)' <<<"$changed"; then
+            touched=1
+          fi
+          named=0
+          if grep -Eiq 'spec[ -][0-9]{4}|specs/(00|spec-)|REQ-[0-9]{4}|LeanSpec spec' <<<"$PR_TITLE"$'\n'"$PR_BODY"; then
+            named=1
+          fi
+          if [ "$touched" = 0 ] && [ "$named" = 0 ]; then
+            echo "::warning::spec-link: a feat or fix PR must touch a spec under specs/ (or .lean-spec) or name one (SPEC-NNNN or a REQ id) in its title or body. Warning only until the Linear backfill is done."
+          else
+            echo "spec-link ok (touched=$touched named=$named)"
+          fi
+          exit 0
