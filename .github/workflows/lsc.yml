@@ -1,9 +1,9 @@
 # LeanSpec PR check (estate standard; Linear EST-1169, parent CER-2890).
 #
-# Runs on the internal estate fleet, never on a GitHub-hosted runner. This repository is public,
-# so the job runs only for pull requests from branches of this repository: code from a fork never
-# runs on an internal runner. The spec-link step is WARNING ONLY and always exits 0. It becomes a
-# required check only after the Linear backfill, on a separate operator go.
+# Runs on a GitHub-hosted runner. This repository is public, and public repositories no longer reach
+# the internal estate fleet (OPS-1695: PR jobs of public repos run hosted). The job still runs only for
+# pull requests from branches of this repository. The spec-link step is WARNING ONLY and always exits 0.
+# It becomes a required check only after the Linear backfill, on a separate operator go.
 name: lsc
 
 on:
@@ -17,7 +17,7 @@ jobs:
   lsc:
     name: lsc
     if: github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: {group: ent-default, labels: [ci-rust]}
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
